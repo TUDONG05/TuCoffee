@@ -1,0 +1,24 @@
+:root {
+  --background: #f7f3ec;
+  --text: #30251f;
+  --brand: #264b3c;
+  --muted: #695c52;
+  --line: #d5cbbd;
+  --error: #9b2c22;
+  font-family: 'Segoe UI', sans-serif;
+  color: var(--text);
+  background: var(--background);
+  font-size: 16px;
+  line-height: 1.6;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+a { color: var(--brand); text-underline-offset: .25em; }
+button, a { -webkit-tap-highlight-color: transparent; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--brand); outline-offset: 5px; }
+h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.5rem, 7vw, 5rem); font-weight: 400; line-height: 1.15; margin: 0; letter-spacing: -.025em; }
+.eyebrow { color: var(--brand); font-weight: 700; font-size: .8rem; letter-spacing: .15em; margin: 0 0 1.5rem; }
+button { min-height: 48px; padding: .75rem 1.25rem; background: var(--brand); border: 1px solid var(--brand); color: #fff; font: inherit; border-radius: .35rem; cursor: pointer; transition: background-color 160ms ease; }
+button:hover:enabled { background: #183628; }
+button:disabled { opacity: .55; cursor: wait; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }

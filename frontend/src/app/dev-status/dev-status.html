@@ -1,0 +1,27 @@
+<section class="status-page" aria-labelledby="status-title">
+  <p class="eyebrow">DÀNH CHO PHÁT TRIỂN</p>
+  <h1 id="status-title">Kiểm tra kết nối</h1>
+  <p class="description">Kiểm tra Angular → proxy → Spring Boot → MySQL trong môi trường local.</p>
+  <div class="health-panel" aria-live="polite" aria-atomic="true" [attr.aria-busy]="state() === 'loading'">
+    @switch (state()) {
+      @case ('loading') {
+        <h2>Đang kiểm tra…</h2>
+        <p>Đang chờ phản hồi từ backend, tối đa 8 giây.</p>
+      }
+      @case ('up') {
+        <h2 class="up">Kết nối thành công</h2>
+        <p>Backend và cơ sở dữ liệu đang sẵn sàng.</p>
+      }
+      @case ('down') {
+        <h2 class="error">Hệ thống chưa sẵn sàng</h2>
+        <p>Backend báo chưa sẵn sàng. Kiểm tra MySQL và log backend, rồi thử lại.</p>
+      }
+      @case ('network-error') {
+        <h2 class="error">Không thể kiểm tra kết nối</h2>
+        <p>Yêu cầu thất bại hoặc quá thời gian chờ. Kiểm tra backend và proxy, rồi thử lại.</p>
+      }
+    }
+  </div>
+  <button type="button" (click)="check()" [disabled]="state() === 'loading'">Kiểm tra lại</button>
+  <p class="endpoint">GET <code>/api/v1/health</code></p>
+</section>

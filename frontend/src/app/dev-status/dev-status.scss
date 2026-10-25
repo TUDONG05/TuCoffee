@@ -1,0 +1,9 @@
+.status-page { max-width: 46rem; padding-block: clamp(2.5rem, 7vw, 5rem); }
+h1 { font-size: clamp(2.25rem, 7vw, 3.5rem); }
+.description { color: var(--muted); margin-block: 1.25rem 2rem; }
+.health-panel { border-block: 1px solid var(--line); padding-block: 1.5rem; min-height: 10rem; margin-bottom: 1.5rem; }
+h2 { font-size: 1.3rem; margin: 0 0 .75rem; }
+.health-panel p { margin: 0; }
+.up { color: var(--brand); }
+.error { color: var(--error); }
+.endpoint { font-size: .875rem; color: var(--muted); overflow-wrap: anywhere; }

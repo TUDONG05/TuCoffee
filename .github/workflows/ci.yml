@@ -1,0 +1,75 @@
+name: Kiểm tra nền tảng TuCoffee
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4.13
+        env:
+          MYSQL_DATABASE: tu_coffee
+          MYSQL_USER: coffee
+          MYSQL_PASSWORD: ci_ephemeral_app
+          MYSQL_ROOT_PASSWORD: ci_ephemeral_root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+          --health-start-period=30s
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: tu_coffee
+      MYSQL_USER: coffee
+      MYSQL_PASSWORD: ci_ephemeral_app
+      SERVER_ADDRESS: 127.0.0.1
+      SERVER_PORT: 8080
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24.18.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Kiểm tra và đóng gói backend với MySQL
+        working-directory: backend
+        run: sh ./mvnw -B verify
+      - name: Cài dependency frontend theo lockfile
+        working-directory: frontend
+        run: npm ci
+      - name: Kiểm tra frontend
+        working-directory: frontend
+        run: npm test -- --watch=false
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Khởi động backend cho smoke test
+        run: java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar > /tmp/tu-coffee-api.log 2>&1 &
+      - name: Chờ health check
+        run: curl --fail --retry 30 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:8080/api/v1/health
+      - name: Cài Chromium cho smoke test
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Kiểm tra Angular gọi backend thật
+        working-directory: frontend
+        run: npm run e2e
+      - name: Log backend khi có lỗi
+        if: failure()
+        run: test ! -f /tmp/tu-coffee-api.log || cat /tmp/tu-coffee-api.log
+

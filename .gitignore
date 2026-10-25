@@ -1,0 +1,32 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local working docs (not part of the shipped source)
+plans/
+
+# IDE and operating system
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Build/dependency output
+**/target/
+**/node_modules/
+**/dist/
+**/.angular/
+**/coverage/
+**/playwright-report/
+**/test-results/
+.tmp/
+*.log
+
+# Runtime data
+uploads/
+infrastructure/data/
+infrastructure/backups/
+

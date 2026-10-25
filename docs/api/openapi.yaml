@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: TuCoffee — API nền tảng
+  version: 0.0.1
+  description: >-
+    Giai đoạn 1 chỉ có health check từ Spring Boot Actuator.
+    Chưa có API tài khoản, thực đơn hay đơn hàng.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: Kiểm tra trạng thái backend và kết nối database
+      description: >-
+        Không yêu cầu đăng nhập. Chỉ trả trạng thái tổng quát, không trả
+        thông tin kết nối, thành phần, mật khẩu hoặc stacktrace.
+        Khi database không truy cập được sau khi app đã khởi động, trả DOWN.
+      responses:
+        '200':
+          description: Hệ thống sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: UP
+        '503':
+          description: Hệ thống không sẵn sàng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+              example:
+                status: DOWN
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+
