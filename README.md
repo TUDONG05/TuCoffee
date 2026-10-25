@@ -136,29 +136,3 @@ npm run e2e
 
 Workflow `.github/workflows/ci.yml` chuẩn bị kiểm tra backend với MySQL, frontend và smoke test. Workflow chỉ thực sự chạy trên GitHub sau khi có repository/commit được đẩy lên; hiện chưa cấu hình remote hoặc push tự động.
 
-## Quy ước cho các giai đoạn tiếp theo
-
-- API nghiệp vụ: `/api/v1`, DTO rõ ràng; lỗi theo RFC 9457. Health dùng định dạng trạng thái Actuator được ghi riêng trong OpenAPI.
-- Danh sách phân trang: `{items,page,size,totalItems,totalPages}`; page bắt đầu 0, size mặc định 12 và tối đa 100.
-- Tiền VND là số nguyên; backend tính giá/tổng tiền.
-- Chỉ thêm module/migration khi bắt đầu chức năng tương ứng; không sửa migration đã chạy trên môi trường chia sẻ.
-- Spring Security, tài khoản và quyền sẽ được triển khai ở giai đoạn 2; giai đoạn 1 chỉ dùng local.
-
-## Thông tin cần chuẩn bị sau
-
-- Trước giai đoạn 4: ngân hàng/tài khoản nhận tiền và thông tin cửa hàng qua cấu hình.
-- Trước ngày 13: tài khoản SMTP và hộp thư thử để kiểm tra reset mật khẩu thật.
-- Trước giai đoạn 6: host, domain và quyền triển khai nếu cần demo công khai.
-
-Không gửi mật khẩu/token vào tài liệu hoặc chat; cấu hình bằng biến môi trường.
-
-## Tiến độ
-
-Ứng dụng phát triển theo 6 giai đoạn: nền tảng → tài khoản/phân quyền → thực đơn → đơn hàng/thanh toán → POS/hoàn thiện → kiểm thử/phát hành.
-
-- [x] Giai đoạn 1 — bộ khung Angular → Spring Boot → MySQL (đã kiểm chứng)
-- [ ] Giai đoạn 2 — tài khoản, JWT, phân quyền
-- [ ] Giai đoạn 3 — thực đơn, quản lý sản phẩm
-- [ ] Giai đoạn 4 — giỏ hàng, đơn hàng, thanh toán
-- [ ] Giai đoạn 5 — POS, dashboard, đánh giá, khôi phục mật khẩu
-- [ ] Giai đoạn 6 — kiểm thử, đóng gói, phát hành
