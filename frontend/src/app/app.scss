@@ -3,6 +3,14 @@
 .brand { display: flex; align-items: baseline; gap: .35rem; font: 700 2rem Georgia, serif; text-decoration: none; color: var(--text); }
 .brand span { font: 400 .875rem 'Segoe UI', sans-serif; letter-spacing: .06em; }
 .brand-note { font-size: .875rem; color: var(--muted); }
+.site-header { flex-wrap: wrap; }
+.account-nav { display: flex; gap: .5rem 1rem; align-items: center; flex-wrap: wrap; font-size: .85rem; }
+.account-nav a { display: inline-flex; min-height: 44px; align-items: center; text-decoration: none; }
+.account-nav a.active { text-decoration: underline; text-underline-offset: .4em; }
+.account-nav .join-link { border: 1px solid var(--line); border-radius: .35rem; padding-inline: .85rem; }
+.nav-button { background: transparent; color: var(--muted); border: 0; padding-inline: 0; font-size: .85rem; min-height: 44px; }
+.nav-button:hover:enabled { color: var(--brand); background: transparent; text-decoration: underline; }
+.session-notice { margin-bottom: 0; }
 main { flex: 1; }
 .site-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem 1.5rem; border-top: 1px solid var(--line); padding-block: 1rem; font-size: .875rem; color: var(--muted); }
 .site-footer a { display: inline-flex; align-items: center; min-height: 44px; }

@@ -1,0 +1,40 @@
+<section class="account-entry" aria-labelledby="auth-title">
+  <aside class="account-story" aria-label="Chào mừng đến Tu’s Coffee">
+    <p class="eyebrow">TU’S COFFEE · CHÀO BẠN</p>
+    <h2>Một chỗ quen.<br />Dành riêng cho bạn.</h2>
+    <p>Giữ lại những điều giản dị.<br />Bắt đầu bằng một lời chào.</p>
+    <div class="coffee-art" aria-hidden="true"><span></span><i></i><b></b></div>
+    <span class="story-caption">Chậm một chút, gần nhau hơn.</span>
+  </aside>
+  <div class="form-card">
+    <p class="eyebrow">TÀI KHOẢN CỦA BẠN</p>
+    <h1 id="auth-title">{{ register ? 'Tạo tài khoản' : 'Chào mừng trở lại' }}</h1>
+    <p class="form-intro">{{ register ? 'Điền vài thông tin để bắt đầu cùng Tu’s Coffee.' : 'Đăng nhập để quản lý thông tin cá nhân của bạn.' }}</p>
+    @if (success()) { <p class="notice success" role="status">{{ success() }}</p> }
+    @if (auth.notice()) { <p class="notice" role="status">{{ auth.notice() }}</p> }
+    <form [formGroup]="form" (ngSubmit)="submit()" [attr.aria-busy]="busy()" novalidate>
+      <fieldset [disabled]="busy()">
+        @if (register) {
+          <div class="field"><label for="name">Họ và tên <span aria-hidden="true">*</span></label>
+            <input id="name" formControlName="name" autocomplete="name" maxlength="100" required [attr.aria-invalid]="invalid('name')" aria-describedby="name-help" />
+            <small id="name-help" [class.field-error]="invalid('name')">{{ invalid('name') ? 'Vui lòng nhập tên từ 2 đến 100 ký tự.' : 'Tên bạn muốn chúng mình gọi.' }}</small>
+          </div>
+        }
+        <div class="field"><label for="email">Email <span aria-hidden="true">*</span></label>
+          <input id="email" type="email" formControlName="email" autocomplete="email" inputmode="email" maxlength="150" required [attr.aria-invalid]="invalid('email')" aria-describedby="email-help" />
+          <small id="email-help" [class.field-error]="invalid('email')">{{ invalid('email') ? 'Vui lòng nhập địa chỉ email hợp lệ, tối đa 150 ký tự.' : 'Ví dụ: ban@example.com' }}</small>
+        </div>
+        <div class="field"><label for="password">Mật khẩu <span aria-hidden="true">*</span></label>
+          <div class="password-input"><input id="password" [type]="passwordType()" formControlName="password" [autocomplete]="register ? 'new-password' : 'current-password'" required [attr.aria-invalid]="invalid('password')" aria-describedby="password-help" />
+            <button class="reveal" type="button" (click)="visible.set(!visible())" [attr.aria-pressed]="visible()" [attr.aria-label]="visible() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'">{{ visible() ? 'Ẩn' : 'Hiện' }}</button>
+          </div>
+          <small id="password-help" [class.field-error]="invalid('password')">{{ register ? 'Từ 10 ký tự, tối đa 72 byte UTF-8 (chữ có dấu có thể dùng nhiều byte).' : (invalid('password') ? 'Vui lòng nhập mật khẩu.' : 'Mật khẩu phân biệt chữ hoa và chữ thường.') }}</small>
+        </div>
+        <p class="notice error" role="alert" [hidden]="!error()">{{ error() }}</p>
+        <button class="primary wide" type="submit">{{ busy() ? 'Đang xử lý…' : (register ? 'Tạo tài khoản' : 'Đăng nhập') }} <span aria-hidden="true">→</span></button>
+      </fieldset>
+    </form>
+    <p class="switch-form">{{ register ? 'Bạn đã có tài khoản?' : 'Lần đầu ghé Tu’s Coffee?' }} <a [routerLink]="register ? '/login' : '/register'">{{ register ? 'Đăng nhập' : 'Tạo tài khoản' }}</a></p>
+    <a class="back-home" routerLink="/">← Về trang chủ</a>
+  </div>
+</section>

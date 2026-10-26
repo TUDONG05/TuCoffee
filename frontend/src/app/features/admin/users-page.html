@@ -1,0 +1,36 @@
+<section class="users-page" aria-labelledby="users-title">
+  <div class="page-heading"><div><p class="eyebrow">QUẢN TRỊ · TÀI KHOẢN</p><h1 id="users-title">Quản lý tài khoản</h1><p class="muted">Tra cứu và quản lý quyền truy cập của khách hàng.</p></div><a routerLink="/profile">← Hồ sơ của tôi</a></div>
+  @if (!auth.user()) { <p class="notice error" role="alert">Phiên không còn khả dụng. <a routerLink="/login">Đăng nhập lại</a> để tiếp tục.</p> }
+  @else {
+    <form class="filter-bar" [formGroup]="filters" (ngSubmit)="load()">
+      <div class="field"><label for="user-search">Tên hoặc email</label><input id="user-search" type="search" formControlName="q" maxlength="100" placeholder="Tìm tài khoản…" /></div>
+      <div class="field"><label for="user-status">Trạng thái</label><select id="user-status" formControlName="active"><option value="">Tất cả</option><option value="true">Đang hoạt động</option><option value="false">Đã khóa</option></select></div>
+      <button type="submit" [disabled]="busy() || changing() !== null">Tìm kiếm</button>
+    </form>
+    <p class="notice error" role="alert" [hidden]="!error()">{{ error() }}</p><p class="notice success" role="status" [hidden]="!message()">{{ message() }}</p>
+    @if (pendingUser(); as selected) {
+      <section class="confirm-panel" aria-labelledby="confirm-title" role="region"><h2 id="confirm-title">{{ selected.active ? 'Khóa tài khoản này?' : 'Mở lại tài khoản này?' }}</h2><p>{{ selected.email }}</p>
+        @if (selected.active) { <p>Các phiên đăng nhập của tài khoản sẽ kết thúc ngay. Bạn có thể mở lại tài khoản sau.</p> }
+        <div class="confirm-actions"><button type="button" (click)="toggle()" [disabled]="changing() !== null">{{ changing() !== null ? 'Đang xử lý…' : 'Xác nhận' }}</button><button type="button" class="secondary" (click)="pendingUser.set(null)" [disabled]="changing() !== null">Hủy</button></div>
+      </section>
+    }
+    <div class="results" [attr.aria-busy]="busy()">
+      @if (busy()) { <p role="status" class="loading-message">Đang tải danh sách tài khoản…</p> }
+      @if (result(); as data) {
+        <div class="results-header"><strong>{{ data.totalItems }} tài khoản</strong><span>Trang {{ data.page + 1 }} / {{ data.totalPages || 1 }}</span></div>
+        @if (data.items.length) {
+          <ul class="user-list">
+            @for (user of data.items; track user.id) {
+              <li class="user-row"><div class="user-info"><strong>{{ user.name }} @if (user.id === auth.user()?.id) { <span class="self-label">Bạn</span> }</strong><span>{{ user.email }}</span></div>
+                <span class="role-label">{{ user.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}</span>
+                <span class="status-label" [class.inactive]="!user.active"><span aria-hidden="true">●</span> {{ user.active ? 'Hoạt động' : 'Đã khóa' }}</span>
+                <button type="button" class="secondary row-action" [disabled]="user.id === auth.user()?.id || changing() !== null || busy()" [attr.aria-label]="(user.active ? 'Khóa ' : 'Mở khóa ') + user.email" (click)="pendingUser.set(user)">{{ user.active ? 'Khóa' : 'Mở khóa' }}</button>
+              </li>
+            }
+          </ul>
+        } @else { <div class="empty-state"><h2>Chưa có kết quả phù hợp</h2><p>Thử đổi tên, email hoặc bộ lọc trạng thái.</p></div> }
+        <nav class="pagination" aria-label="Phân trang tài khoản"><button type="button" class="secondary" [disabled]="data.page === 0 || busy() || changing() !== null" (click)="load(data.page - 1)">← Trang trước</button><button type="button" class="secondary" [disabled]="data.page + 1 >= data.totalPages || busy() || changing() !== null" (click)="load(data.page + 1)">Trang sau →</button></nav>
+      } @else if (error()) { <button type="button" class="secondary" (click)="load()">Thử tải lại</button> }
+    </div>
+  }
+</section>

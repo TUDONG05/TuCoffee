@@ -1,46 +1,642 @@
-openapi: 3.0.3
+openapi: "3.0.3"
 info:
-  title: TuCoffee — API nền tảng
-  version: 0.0.1
-  description: >-
-    Giai đoạn 1 chỉ có health check từ Spring Boot Actuator.
-    Chưa có API tài khoản, thực đơn hay đơn hàng.
+  title: "TuCoffee — API giai đoạn 2"
+  version: "0.2.0"
+  description: "JWT HS256 15 phút lưu trong bộ nhớ frontend; refresh opaque cookie, thời hạn tuyệt đối 7 ngày, rotate mỗi lần. Replay thu hồi cả phiên. CSRF cho mọi thao tác ghi; Origin phải thuộc allowlist khi có. Cookie Secure mặc định, local HTTP phải bật profile local. Không có tích điểm/khuyến mãi."
 servers:
-  - url: http://localhost:8080
+  - "url": "http://localhost:8080"
 paths:
-  /api/v1/health:
+  "/api/v1/health":
     get:
-      operationId: getHealth
-      summary: Kiểm tra trạng thái backend và kết nối database
-      description: >-
-        Không yêu cầu đăng nhập. Chỉ trả trạng thái tổng quát, không trả
-        thông tin kết nối, thành phần, mật khẩu hoặc stacktrace.
-        Khi database không truy cập được sau khi app đã khởi động, trả DOWN.
+      operationId: "getHealth"
+      summary: "Trạng thái tổng quát backend và database"
       responses:
-        '200':
-          description: Hệ thống sẵn sàng
+        "200":
+          description: "UP; không có chi tiết kết nối"
           content:
-            application/json:
+            "application/json":
               schema:
-                $ref: '#/components/schemas/Health'
-              example:
-                status: UP
-        '503':
-          description: Hệ thống không sẵn sàng
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: "DOWN khi database không sẵn sàng sau khởi động"
           content:
-            application/json:
+            "application/json":
               schema:
-                $ref: '#/components/schemas/Health'
-              example:
-                status: DOWN
+                $ref: "#/components/schemas/Health"
+  "/api/v1/auth/csrf":
+    get:
+      operationId: "getCsrf"
+      summary: "Lấy CSRF cookie/token; không cache"
+      responses:
+        "200":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Csrf"
+  "/api/v1/auth/register":
+    post:
+      operationId: "register"
+      summary: "Đăng ký USER; không tự đăng nhập"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              additionalProperties: false
+              required:
+                - "name"
+                - "email"
+                - "password"
+              properties:
+                name:
+                  type: "string"
+                  minLength: 2
+                  maxLength: 100
+                email:
+                  type: "string"
+                  format: "email"
+                  maxLength: 150
+                  description: "Trim/chữ thường"
+                password:
+                  type: "string"
+                  format: "password"
+                  minLength: 10
+                  description: "Không trim; tối đa 72 byte UTF-8."
+      responses:
+        "201":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: "EMAIL_EXISTS"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+  "/api/v1/auth/login":
+    post:
+      operationId: "login"
+      summary: "Đăng nhập và cấp refresh cookie"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              additionalProperties: false
+              required:
+                - "email"
+                - "password"
+              properties:
+                email:
+                  type: "string"
+                  format: "email"
+                  maxLength: 150
+                  description: "Trim/chữ thường"
+                password:
+                  type: "string"
+                  format: "password"
+      responses:
+        "200":
+          description: "Access mới; Cache-Control: no-store"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          headers:
+            Set-Cookie:
+              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              schema:
+                type: "string"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "429":
+          description: "RATE_LIMITED"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      description: "Sai email/mật khẩu hoặc tài khoản khóa cùng trả INVALID_CREDENTIALS. Giới hạn 5 lần sai/15 phút theo email và IP."
+  "/api/v1/auth/refresh":
+    post:
+      operationId: "refresh"
+      summary: "Rotate refresh, không kéo dài hạn tuyệt đối"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Access mới; Cache-Control: no-store"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          headers:
+            Set-Cookie:
+              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              schema:
+                type: "string"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      security:
+        - "refreshCookie": []
+      description: "Body rỗng. Single flight trong tab, Web Locks giữa tab. Không tự retry nếu mất phản hồi mơ hồ; đăng nhập lại."
+  "/api/v1/auth/logout":
+    post:
+      operationId: "logout"
+      summary: "Thu hồi phiên và xóa cookie"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      responses:
+        "204":
+          description: "Đã thu hồi phiên, xóa refresh và CSRF cookie"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      description: "Idempotent. Cookie hoặc bearer kể cả access hết hạn. CSRF vẫn bắt buộc. Các phiên khác giữ nguyên."
+  "/api/v1/users/me":
+    get:
+      operationId: "getProfile"
+      summary: "Hồ sơ hiện tại"
+      security:
+        - "bearerAuth": []
+      responses:
+        "200":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+    patch:
+      operationId: "updateProfile"
+      summary: "Cập nhật đủ name, phone, address"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              additionalProperties: false
+              required:
+                - "name"
+                - "phone"
+                - "address"
+              properties:
+                name:
+                  type: "string"
+                  minLength: 2
+                  maxLength: 100
+                phone:
+                  type: "string"
+                  nullable: true
+                  pattern: "^0[35789]\\d{8}$"
+                address:
+                  type: "string"
+                  nullable: true
+                  maxLength: 300
+      responses:
+        "200":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      security:
+        - "bearerAuth": []
+      description: "Gửi đủ ba trường; phone/address có thể null. Không sửa email/role/active."
+  "/api/v1/users/me/password":
+    put:
+      operationId: "changePassword"
+      summary: "Đổi mật khẩu, thay mọi phiên cũ bằng một phiên mới"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              additionalProperties: false
+              required:
+                - "currentPassword"
+                - "newPassword"
+              properties:
+                currentPassword:
+                  type: "string"
+                  format: "password"
+                newPassword:
+                  type: "string"
+                  format: "password"
+                  minLength: 10
+                  description: "Không trim; tối đa 72 byte UTF-8."
+      responses:
+        "200":
+          description: "Access mới; Cache-Control: no-store"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+          headers:
+            Set-Cookie:
+              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              schema:
+                type: "string"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      security:
+        - "bearerAuth": []
+      description: "Mật khẩu cũ sai trả INVALID_CURRENT_PASSWORD 400. Revoke tất cả sid cũ, cấp access/cookie sid mới, giữ hạn tuyệt đối của phiên hiện tại. Lấy lại CSRF sau thành công."
+  "/api/v1/admin/users":
+    get:
+      operationId: "listUsers"
+      summary: "ADMIN tìm kiếm, lọc và phân trang tài khoản theo id"
+      security:
+        - "bearerAuth": []
+      parameters:
+        - "name": "q"
+          in: "query"
+          schema:
+            type: "string"
+            maxLength: 100
+            default: ""
+        - "name": "active"
+          in: "query"
+          schema:
+            type: "boolean"
+        - "name": "page"
+          in: "query"
+          schema:
+            type: "integer"
+            minimum: 0
+            maximum: 1000000
+            default: 0
+        - "name": "size"
+          in: "query"
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 100
+            default: 12
+      responses:
+        "200":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/UserPage"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+  "/api/v1/admin/users/{id}/active":
+    patch:
+      operationId: "setUserActive"
+      summary: "ADMIN khóa/mở tài khoản"
+      parameters:
+        - "name": "X-XSRF-TOKEN"
+          in: "header"
+          required: true
+          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+          schema:
+            type: "string"
+        - "name": "id"
+          in: "path"
+          required: true
+          schema:
+            type: "integer"
+            format: "int64"
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              additionalProperties: false
+              required:
+                - "active"
+              properties:
+                active:
+                  type: "boolean"
+      responses:
+        "200":
+          description: "Thành công"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "401":
+          description: "Xác thực/phiên không hợp lệ; xem code"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: "Không tìm thấy tài khoản"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "409":
+          description: "ADMIN_LOCK_NOT_ALLOWED"
+          content:
+            "application/problem+json":
+              schema:
+                $ref: "#/components/schemas/Problem"
+      security:
+        - "bearerAuth": []
+      description: "Khóa thu hồi mọi phiên; mở khóa không phục hồi phiên cũ. Cấm tự khóa hoặc khóa ADMIN hoạt động cuối, kể cả đồng thời."
 components:
+  securitySchemes:
+    bearerAuth:
+      type: "http"
+      scheme: "bearer"
+      bearerFormat: "JWT"
+    refreshCookie:
+      type: "apiKey"
+      in: "cookie"
+      name: "tucoffee_refresh"
   schemas:
     Health:
-      type: object
-      required: [status]
+      type: "object"
       additionalProperties: false
+      required:
+        - "status"
       properties:
         status:
-          type: string
-          enum: [UP, DOWN]
-
+          type: "string"
+          enum:
+            - "UP"
+            - "DOWN"
+    Csrf:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "headerName"
+        - "token"
+      properties:
+        headerName:
+          type: "string"
+          enum:
+            - "X-XSRF-TOKEN"
+        token:
+          type: "string"
+    User:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "id"
+        - "name"
+        - "email"
+        - "phone"
+        - "address"
+        - "role"
+        - "active"
+      properties:
+        id:
+          type: "integer"
+          format: "int64"
+        name:
+          type: "string"
+        email:
+          type: "string"
+          format: "email"
+          maxLength: 150
+          description: "Trim/chữ thường"
+        phone:
+          type: "string"
+          nullable: true
+        address:
+          type: "string"
+          nullable: true
+        role:
+          type: "string"
+          enum:
+            - "USER"
+            - "ADMIN"
+        active:
+          type: "boolean"
+    AuthResponse:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "accessToken"
+        - "expiresIn"
+        - "user"
+      properties:
+        accessToken:
+          type: "string"
+          description: "JWT chứa sub, sid, iss, iat, exp. Không ghi vào web storage/URL."
+        expiresIn:
+          type: "integer"
+          enum:
+            - 900
+        user:
+          $ref: "#/components/schemas/User"
+    UserPage:
+      type: "object"
+      additionalProperties: false
+      required:
+        - "items"
+        - "page"
+        - "size"
+        - "totalItems"
+        - "totalPages"
+      properties:
+        items:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/User"
+        page:
+          type: "integer"
+        size:
+          type: "integer"
+        totalItems:
+          type: "integer"
+          format: "int64"
+        totalPages:
+          type: "integer"
+    Problem:
+      type: "object"
+      required:
+        - "type"
+        - "title"
+        - "status"
+        - "detail"
+        - "instance"
+      properties:
+        type:
+          type: "string"
+        title:
+          type: "string"
+        status:
+          type: "integer"
+        detail:
+          type: "string"
+        instance:
+          type: "string"
+        code:
+          type: "string"
+          description: "Mã lỗi nghiệp vụ/bảo mật; lỗi cú pháp JSON do framework có thể không có trường này."
+        fieldErrors:
+          type: "object"
+          additionalProperties:
+            type: "string"

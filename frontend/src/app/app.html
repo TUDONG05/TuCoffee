@@ -1,8 +1,19 @@
 <a class="skip-link" href="#main">Đến nội dung chính</a>
 <header class="site-header">
   <a class="brand" routerLink="/" aria-label="Tu’s Coffee — trang chủ">tu’s<span>coffee</span></a>
-  <span class="brand-note">Một chút chậm lại.</span>
+  <nav class="account-nav" aria-label="Tài khoản">
+    @if (auth.user()) {
+      @if (auth.isAdmin()) { <a routerLink="/admin/users" routerLinkActive="active">Quản trị</a> }
+      <a routerLink="/profile" routerLinkActive="active">Tài khoản</a>
+      <button class="nav-button" type="button" (click)="logout()" [disabled]="loggingOut()">{{ loggingOut() ? 'Đang đăng xuất…' : 'Đăng xuất' }}</button>
+    } @else {
+      <a routerLink="/login" routerLinkActive="active">Đăng nhập</a>
+      <a class="join-link" routerLink="/register" routerLinkActive="active">Tạo tài khoản</a>
+      @if (logoutFailed()) { <button class="nav-button" type="button" (click)="logout()" [disabled]="loggingOut()">Thử đăng xuất lại</button> }
+    }
+  </nav>
 </header>
+@if (auth.notice()) { <p class="session-notice notice" role="status">{{ auth.notice() }}</p> }
 <main id="main" tabindex="-1"><router-outlet /></main>
 <footer class="site-footer">
   <span>Tu’s Coffee</span>

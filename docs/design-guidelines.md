@@ -18,3 +18,10 @@ Không thêm menu bán hàng, giỏ hoặc đăng nhập trước giai đoạn t
 - Trang kết nối hiển thị đang tải, thành công, không sẵn sàng hoặc lỗi mạng, có thử lại.
 - Thông báo động dùng aria-live; giao diện co giãn từ chiều rộng 360px.
 - Tôn trọng prefers-reduced-motion; chi tiết kỹ thuật đặt ở trang phát triển.
+
+## Bổ sung giao diện giai đoạn 2
+
+- Giữ màu nền kem và thương hiệu xanh; bề mặt `#fffdf8`, nền nhấn `#e5ece4`.
+- Form một cột trên mobile, bố cục chia phần giới thiệu và form trên desktop.
+- Nhãn luôn hiển thị, thông báo qua `aria-live`, input cao tối thiểu 48px; mật khẩu có nút hiện/ẩn.
+- Danh sách tài khoản thích ứng màn hình nhỏ; xác nhận trước khi khóa/mở tài khoản.

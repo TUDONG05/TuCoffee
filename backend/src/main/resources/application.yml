@@ -1,6 +1,16 @@
+debug: false
+logging:
+  level:
+    org.springframework.web: INFO
+
 spring:
   application:
     name: tu-coffee-api
+  jackson:
+    mapper:
+      allow-coercion-of-scalars: false
+    deserialization:
+      fail-on-unknown-properties: true
   config:
     import: optional:file:../.env[.properties],optional:file:.env[.properties]
   datasource:
@@ -22,6 +32,7 @@ spring:
     locations: classpath:db/migration
     clean-disabled: true
   mvc:
+    log-request-details: false
     problemdetails:
       enabled: true
 
@@ -46,3 +57,8 @@ management:
       show-components: never
       probes:
         enabled: false
+
+auth:
+  jwt-secret: ${AUTH_JWT_SECRET}
+  allowed-origins: ${AUTH_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,http://localhost:8080,http://127.0.0.1:8080}
+  cookie-secure: ${AUTH_COOKIE_SECURE:true}

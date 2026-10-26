@@ -32,7 +32,11 @@ jobs:
       MYSQL_USER: coffee
       MYSQL_PASSWORD: ci_ephemeral_app
       SERVER_ADDRESS: 127.0.0.1
-      SERVER_PORT: 8080
+      SERVER_PORT: 8081
+      SPRING_PROFILES_ACTIVE: local
+      AUTH_ALLOWED_ORIGINS: http://localhost:4201
+      E2E_API_TARGET: http://127.0.0.1:8081
+      E2E_ADMIN_EMAIL: admin-ci@example.test
       CI: 'true'
     steps:
       - uses: actions/checkout@v7.0.1
@@ -47,6 +51,16 @@ jobs:
           node-version: '24.18.0'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Tạo khóa và mật khẩu tạm cho lần chạy CI
+        shell: bash
+        run: |
+          jwt_secret=$(openssl rand -base64 48 | tr -d '\n')
+          admin_password=$(openssl rand -base64 24 | tr -d '\n')
+          echo "::add-mask::$jwt_secret"
+          echo "::add-mask::$admin_password"
+          echo "AUTH_JWT_SECRET=$jwt_secret" >> "$GITHUB_ENV"
+          echo "BOOTSTRAP_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
       - name: Kiểm tra và đóng gói backend với MySQL
         working-directory: backend
         run: sh ./mvnw -B verify
@@ -59,10 +73,16 @@ jobs:
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+      - name: Tạo ADMIN trên database CI tạm
+        run: >-
+          java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar
+          --spring.profiles.active=bootstrap --spring.main.web-application-type=none
+          --bootstrap.admin.name="CI Administrator" --bootstrap.admin.email="$E2E_ADMIN_EMAIL"
+          --debug=false
       - name: Khởi động backend cho smoke test
-        run: java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar > /tmp/tu-coffee-api.log 2>&1 &
+        run: java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar --debug=false > /tmp/tu-coffee-api.log 2>&1 &
       - name: Chờ health check
-        run: curl --fail --retry 30 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:8080/api/v1/health
+        run: curl --fail --retry 30 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:8081/api/v1/health
       - name: Cài Chromium cho smoke test
         working-directory: frontend
         run: npx playwright install --with-deps chromium
@@ -72,4 +92,3 @@ jobs:
       - name: Log backend khi có lỗi
         if: failure()
         run: test ! -f /tmp/tu-coffee-api.log || cat /tmp/tu-coffee-api.log
-

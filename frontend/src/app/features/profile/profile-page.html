@@ -1,0 +1,32 @@
+<section class="account-page" aria-labelledby="profile-title">
+  <div class="page-heading"><div><p class="eyebrow">GÓC CỦA BẠN</p><h1 id="profile-title">Thông tin cá nhân</h1><p class="muted">Một vài thông tin để chúng mình hiểu bạn hơn.</p></div>
+    @if (auth.user(); as user) { <div class="identity-summary"><span class="avatar" aria-hidden="true">{{ user.name.charAt(0).toUpperCase() }}</span><div><strong>{{ user.name }}</strong><small>{{ user.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}</small></div></div> }
+  </div>
+  @if (denied) { <p class="notice error" role="alert">Bạn không có quyền truy cập trang quản trị.</p> }
+  @if (!auth.user()) { <p class="notice" role="alert">Phiên không còn khả dụng. <a routerLink="/login">Đăng nhập lại</a> để tiếp tục.</p> }
+  @else {
+    <div class="profile-grid">
+      <section class="panel" aria-labelledby="details-title"><div class="panel-heading"><span class="section-number" aria-hidden="true">01</span><div><h2 id="details-title">Hồ sơ của bạn</h2><p>Thông tin liên hệ và tên hiển thị.</p></div></div>
+        <form [formGroup]="form" (ngSubmit)="saveProfile()" [attr.aria-busy]="profileBusy()" novalidate><fieldset [disabled]="profileBusy() || passwordBusy()">
+          <div class="field"><label for="profile-email">Email</label><input id="profile-email" type="email" [value]="auth.user()?.email" readonly autocomplete="email" aria-describedby="profile-email-help" /><small id="profile-email-help">Email đăng nhập không thể thay đổi tại đây.</small></div>
+          <div class="field"><label for="profile-name">Họ và tên *</label><input id="profile-name" formControlName="name" autocomplete="name" maxlength="100" required [attr.aria-invalid]="invalid('name')" aria-describedby="profile-name-help" /><small id="profile-name-help" [class.field-error]="invalid('name')">Từ 2 đến 100 ký tự.</small></div>
+          <div class="field"><label for="profile-phone">Số điện thoại <span class="optional">Không bắt buộc</span></label><input id="profile-phone" type="tel" formControlName="phone" autocomplete="tel-national" inputmode="tel" maxlength="10" [attr.aria-invalid]="invalid('phone')" aria-describedby="profile-phone-help" /><small id="profile-phone-help" [class.field-error]="invalid('phone')">Số Việt Nam gồm 10 chữ số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.</small></div>
+          <div class="field"><label for="profile-address">Địa chỉ <span class="optional">Không bắt buộc</span></label><textarea id="profile-address" formControlName="address" autocomplete="street-address" maxlength="300" rows="3" [attr.aria-invalid]="invalid('address')" aria-describedby="address-help"></textarea><small id="address-help">Tối đa 300 ký tự.</small></div>
+          <p class="notice error" role="alert" [hidden]="!profileError()">{{ profileError() }}</p><p class="notice success" role="status" [hidden]="!profileSuccess()">{{ profileSuccess() }}</p>
+          <button type="submit">{{ profileBusy() ? 'Đang lưu…' : 'Lưu thông tin' }}</button>
+        </fieldset></form>
+      </section>
+      <section class="panel" aria-labelledby="security-title"><div class="panel-heading"><span class="section-number" aria-hidden="true">02</span><div><h2 id="security-title">Bảo mật</h2><p>Đổi mật khẩu để bảo vệ tài khoản.</p></div></div>
+        <form [formGroup]="passwordForm" (ngSubmit)="savePassword()" [attr.aria-busy]="passwordBusy()" novalidate><fieldset [disabled]="passwordBusy() || profileBusy()">
+          <div class="field"><label for="current-password">Mật khẩu hiện tại *</label><input id="current-password" [type]="showPassword() ? 'text' : 'password'" formControlName="currentPassword" autocomplete="current-password" required [attr.aria-invalid]="passwordInvalid('currentPassword')" /></div>
+          <div class="field"><label for="new-password">Mật khẩu mới *</label><input id="new-password" [type]="showPassword() ? 'text' : 'password'" formControlName="newPassword" autocomplete="new-password" required [attr.aria-invalid]="passwordInvalid('newPassword')" aria-describedby="new-password-help" /><small id="new-password-help" [class.field-error]="passwordInvalid('newPassword')">Từ 10 ký tự, tối đa 72 byte UTF-8.</small></div>
+          <div class="field"><label for="confirm-password">Xác nhận mật khẩu mới *</label><input id="confirm-password" [type]="showPassword() ? 'text' : 'password'" formControlName="confirmPassword" autocomplete="new-password" required [attr.aria-invalid]="passwordInvalid('confirmPassword')" /></div>
+          <label class="checkbox-label"><input type="checkbox" [checked]="showPassword()" (change)="showPassword.set(!showPassword())" />Hiện mật khẩu</label>
+          <p class="muted security-note">Sau khi đổi, bạn vẫn đăng nhập ở đây. Các phiên trên thiết bị và tab khác sẽ kết thúc.</p>
+          <p class="notice error" role="alert" [hidden]="!passwordError()">{{ passwordError() }}</p><p class="notice success" role="status" [hidden]="!passwordSuccess()">{{ passwordSuccess() }}</p>
+          <button type="submit" class="secondary">{{ passwordBusy() ? 'Đang đổi…' : 'Đổi mật khẩu' }}</button>
+        </fieldset></form>
+      </section>
+    </div>
+  }
+</section>
