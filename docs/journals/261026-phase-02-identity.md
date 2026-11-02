@@ -7,7 +7,19 @@ scope: phase-02
 
 # Giai đoạn 2 — tài khoản, phiên đăng nhập và phân quyền
 
+## Đính chính cấu hình theo yêu cầu người dùng
+
+Ngày 26/10/2026, người dùng xác nhận dùng **MySQL cài trực tiếp, cổng 3306; không dùng Docker**. Phần ghi chép bên dưới phản ánh lần triển khai trước khi sửa yêu cầu này.
+
+Đã sửa `.env`, cấu hình mặc định, hướng dẫn chạy và kế hoạch; bỏ Compose/Testcontainers, chuyển fixture và E2E sang schema test sinh riêng trên MySQL native. CI cũng dùng MySQL cài trực tiếp trên runner. Không tự sinh/đổi mật khẩu tài khoản MySQL khi khởi tạo môi trường.
+
+MySQL80 phiên bản 8.0.46 đang chạy trên máy; backend đã kết nối `127.0.0.1:3306/tu_coffee`, Flyway nâng V1 lên V2 và health trả UP. Container cũ đã dừng, volume giữ nguyên. Chưa chạy lại bộ unit/integration/E2E sau chuyển đổi; kết quả 23/25/7 bên dưới là bằng chứng lịch sử của cấu hình trước.
+
 ## Bối cảnh
+
+Cập nhật tiếp theo theo yêu cầu dùng JPA: tạo năm entity User/AuthSession/AuthTokenHistory/AuthRateLimit/IdentityLock và năm JpaRepository tương ứng; bỏ IdentityStore và các record model JDBC. Service dùng JPA/transaction, filter đọc principal qua service; UserResponse giữ nguyên JSON HTTP và không lộ entity/hash. Giữ FlywayV1/V2 và MySQL native3306. Đã clean package skipTests và khởi động Hibernate/schema validation thành công, health UP; rà soát độc lập không phát hiện lỗi Critical/High, chưa chạy hồi quy. POM hiện chọn Java25 do chỉnh sửa trong phiên; máy chỉ có JDK21 nên lần build này override -Djava.version=21, chưa đổi lại POM, đang chờ lựa chọn phiên bản Java.
+
+Cập nhật cấu trúc theo yêu cầu ngày 26/10: chuyển controller/service/repository/dto/model/security/validation/bootstrap trực tiếp dưới `com.tuscoffee`; chuyển xử lý lỗi sang `shared.exception`, bỏ package `identity`. Tách record request/response và Account/AuthSession thành file riêng, giữ nguyên HTTP contract. Các model vẫn dùng JDBC, chưa phải entity JPA. Đã clean build với `-DskipTests`, biên dịch cả source test và khởi động lại backend; health UP trên MySQL native 3306. Chưa chạy lại bộ test sau refactor.
 
 Người dùng yêu cầu triển khai giai đoạn 2 của kế hoạch ba tuần, tiếp nối nền tảng đã nghiệm thu. Phạm vi: đăng ký/login, USER/ADMIN, hồ sơ/đổi mật khẩu, refresh/logout và quản lý khóa tài khoản. Rewards/khuyến mãi để sau; không bắt đầu catalog hay reset mật khẩu.
 

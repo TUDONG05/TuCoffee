@@ -1,0 +1,19 @@
+﻿id,name,category,price,description,image_url,video_url,is_active,avg_rating,review_count
+37,Hướng dương vị dừa,Đồ Ăn,10000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/37_bfae0202-CR192SoKyyJ8fNJWsRIneAQtONRnBz.jpg,,1,0.0,0
+38,Viên chiên,Combo,50000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/38_adb54415-LeXBz0hymWB4NIhwyguVzwIZo6TI9U.jpeg,,1,0.0,0
+1,Cà Phê Sữa Đá,Cà Phê,10000,"Cà phê Arabica hảo hạng pha phin, ngọt ngào với sữa đặc",https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/1_b7c4f41f-9qCZSLNnjIbJABkIqOqaum3lDeYnEG.jpg,,1,0.0,0
+2,Cà Phê Đen Đá,Cà Phê,29000,"Robusta Tây Nguyên nguyên chất, đậm vị mạnh mẽ",https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/2_5618c27f-EncQxS9DavnUqrKNkrQHbuS6CcxXuF.png,,1,0.0,0
+3,Cà Phê Trứng,Cà Phê,45000,Cà phê phủ lớp kem trứng béo mịn đặc trưng Hà Nội,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/3_3665db9c-t5Ca8hXyV8EnrVPLmUSeCp9JXbhox5.png,,1,0.0,0
+5,Latte,Cà Phê,55000,"Espresso nhẹ nhàng với sữa nóng mịn, ít đắng",https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/5_c17549ae-Unm6t6243b6AHuSmp6qn76QVX3mWJM.png,,1,0.0,0
+4,Cappuccino,Cà Phê,55000,Espresso Ý kết hợp sữa nóng tạo bọt mịn hoàn hảo,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/4_03ae47f0-psUDMf90D9YrxwncydeCzXemEKIFsE.png,,1,0.0,0
+6,Americano,Cà Phê,49000,"Espresso đậm pha loãng với nước nóng, thanh sạch",https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/6_42a977be-y8oifRDyXXKfMGVA2U7PA4WHrK8Izr.png,,1,3.0,1
+7,Mocha,Cà Phê,59000,Cà phê sô-cô-la hòa quyện sữa tươi và kem Chantilly,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/7_3f3c1920-mK6VSkttFdgfjm5cf4kotyk0ozGVpj.jpeg,,1,0.0,0
+8,Cold Brew Đá Muối,Cà Phê,65000,"Ngâm lạnh 18 giờ, phủ muối hồng Himalaya",https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/8_1a443a12-FNsSFHjixN4k4lkpuFUy3PDkM5nsE6.png,,1,0.0,0
+9,Espresso Tonic,Cà Phê,59000,Espresso đổ lên nước tonic vị chanh sảng khoái,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/9_1798d1df-8KaQQoa0wxfJaljBK1JSQSlcT4sWRb.jpeg,,1,0.0,0
+10,Cà Phê Dừa,Cà Phê,55000,Cà phê sữa đặc kết hợp nước cốt dừa béo ngậy,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/10_b8fbba77-RKuSiPjpkI0BZTkGzJToyVwxDvXnSX.jpg,,1,0.0,0
+31,Trà chanh,Trà,15000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/31_771a9f7a-oe1fVh3hGGF5pc51FFuoRJfGCODTFS.jpg,,1,0.0,0
+32,Trà đào,Trà,25000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/32_699ed3f8-OWx0Fco3cYrEl8GaxXzz4daPqvXVZs.jpeg,,1,0.0,0
+33,Trà tắc,Trà,10000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/33_d86ac2e8-9jVOnESt5pk2kiqm1zyZ8YT929QItT.jpg,,1,0.0,0
+34,Matcha đá xay,Đá Xay,35000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/34_13bac5fb-LzRrWn2vYNWxjLu0fn6GzPAGoggiQW.png,,1,0.0,0
+35,Mocha đá xay,Đá Xay,35000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/35_878b7a1a-eETZ8ytlUbJdG3U5iGz20zMEnHjmFJ.jpg,,1,0.0,0
+36,Hướng dương nguyên bản,Đồ Ăn,10000,,https://aolhriwsz2ptpam6.public.blob.vercel-storage.com/products/36_2d7aefe2-5ydG4r4UzNhjRqs6wEbQHu5mLNXFVw.jpeg,,1,0.0,0

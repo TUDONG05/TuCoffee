@@ -9,8 +9,11 @@ describe('identity input rules', () => {
     expect(passwordPolicy(new FormControl(' 12345678 '))).toBeNull();
   });
   it('accepts optional phones and valid Vietnamese mobile numbers', () => {
-    expect(optionalPhone(new FormControl(''))).toBeNull(); expect(optionalPhone(new FormControl('0912345678'))).toBeNull();
+    expect(optionalPhone(new FormControl(''))).toBeNull();
+    expect(optionalPhone(new FormControl('0912345678'))).toBeNull();
     expect(optionalPhone(new FormControl('0112345678'))).toEqual({ phone: true });
   });
-  it('rejects whitespace-only names', () => { expect(trimmedLength(2, 100)(new FormControl('   '))).toEqual({ trimmedLength: true }); });
+  it('rejects whitespace-only names', () => {
+    expect(trimmedLength(2, 100)(new FormControl('   '))).toEqual({ trimmedLength: true });
+  });
 });

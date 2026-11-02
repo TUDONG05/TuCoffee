@@ -10,13 +10,18 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.initialize();
-  return auth.user() ? true : router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(state.url) } });
+  return auth.user()
+    ? true
+    : router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(state.url) } });
 };
 
 export const adminGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   await auth.initialize();
-  if (!auth.user()) return router.createUrlTree(['/login'], { queryParams: { returnUrl: safeReturnUrl(state.url) } });
+  if (!auth.user())
+    return router.createUrlTree(['/login'], {
+      queryParams: { returnUrl: safeReturnUrl(state.url) },
+    });
   return auth.isAdmin() || router.createUrlTree(['/profile'], { queryParams: { denied: '1' } });
 };

@@ -30,7 +30,9 @@ describe('DevStatus', () => {
   });
 
   it('reports database unavailability from HTTP 503 and supports recovery', () => {
-    http.expectOne('/api/v1/health').flush({ status: 'DOWN' }, { status: 503, statusText: 'Service Unavailable' });
+    http
+      .expectOne('/api/v1/health')
+      .flush({ status: 'DOWN' }, { status: 503, statusText: 'Service Unavailable' });
     fixture.detectChanges();
     expect(content()).toContain('Hệ thống chưa sẵn sàng');
     fixture.nativeElement.querySelector('button').click();

@@ -2,7 +2,6 @@ package com.tuscoffee;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
@@ -10,14 +9,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-@SpringBootTest(properties = {"spring.config.import=", "debug=false", "logging.level.root=INFO", "logging.level.org.springframework=INFO"})
+@SpringBootTest(
+        properties = {
+            "spring.config.import=",
+            "debug=false",
+            "logging.level.root=INFO",
+            "logging.level.org.springframework=INFO"
+        })
 class TuCoffeeApplicationTests extends MySqlIntegrationSupport {
 
-    @Autowired
-    private JdbcTemplate jdbc;
+    @Autowired private JdbcTemplate jdbc;
 
-    @Autowired
-    private Flyway flyway;
+    @Autowired private Flyway flyway;
 
     @Test
     void connectsToConfiguredMySql() {
@@ -26,8 +29,8 @@ class TuCoffeeApplicationTests extends MySqlIntegrationSupport {
 
     @Test
     void appliesTheFoundationMigration() {
-        assertTrue(Arrays.stream(flyway.info().applied())
-            .anyMatch(migration -> "1".equals(migration.getVersion().getVersion())));
+        assertTrue(
+                Arrays.stream(flyway.info().applied())
+                        .anyMatch(migration -> "1".equals(migration.getVersion().getVersion())));
     }
-
 }

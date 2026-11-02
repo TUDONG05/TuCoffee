@@ -5,12 +5,17 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 describe('App shell', () => {
-  it('exposes accessible navigation to the developer status route', async () => {
-    await TestBed.configureTestingModule({ imports: [App], providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()] }).compileComponents();
+  it('exposes accessible footer navigation to the home page', async () => {
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const statusLink = fixture.nativeElement.querySelector('footer a') as HTMLAnchorElement;
-    expect(statusLink.getAttribute('href')).toBe('/dev/status');
+    const statusLink = fixture.nativeElement.querySelector(
+      'footer .footer-links a',
+    ) as HTMLAnchorElement;
+    expect(statusLink.getAttribute('href')).toBe('/');
     expect(fixture.nativeElement.querySelector('.skip-link').getAttribute('href')).toBe('#main');
   });
 });

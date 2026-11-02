@@ -13,7 +13,9 @@ export default defineConfig({
   use: { baseURL, trace: 'retain-on-failure' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: isolated ? `npm exec ng -- serve --host localhost --port ${port} --proxy-config src/proxy.e2e.cjs` : 'npm run start',
+    command: isolated
+      ? `npm exec ng -- serve --host localhost --port ${port} --proxy-config src/proxy.e2e.cjs`
+      : 'npm run start',
     url: baseURL,
     reuseExistingServer: !process.env['CI'] && !isolated,
     timeout: 120_000,
