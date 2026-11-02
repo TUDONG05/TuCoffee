@@ -22,14 +22,16 @@ abstract class MySqlIntegrationSupport {
         // Testcontainers/Ryuk owns teardown; no per-class stop with cached Spring contexts.
     }
 
+    // Override canonical Spring property names so runner environment variables cannot
+    // replace the isolated test JWT/cookie/origin settings. E2E uses a different origin.
     @DynamicPropertySource
     static void isolatedDatabase(DynamicPropertyRegistry properties) {
         properties.add("spring.datasource.url", MYSQL::getJdbcUrl);
         properties.add("spring.datasource.username", MYSQL::getUsername);
         properties.add("spring.datasource.password", MYSQL::getPassword);
-        properties.add("AUTH_JWT_SECRET", () -> Base64.getEncoder().encodeToString(JWT_KEY));
-        properties.add("AUTH_COOKIE_SECURE", () -> "false");
-        properties.add("AUTH_ALLOWED_ORIGINS", () -> "http://localhost:4200");
+        properties.add("auth.jwt-secret", () -> Base64.getEncoder().encodeToString(JWT_KEY));
+        properties.add("auth.cookie-secure", () -> "false");
+        properties.add("auth.allowed-origins", () -> "http://localhost:4200");
         properties.add("debug", () -> "false");
         properties.add("logging.level.root", () -> "INFO");
         properties.add("logging.level.org.springframework", () -> "INFO");
