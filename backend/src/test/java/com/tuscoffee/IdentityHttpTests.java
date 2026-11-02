@@ -92,7 +92,11 @@ class IdentityHttpTests extends MySqlIntegrationSupport {
         assertEquals("first@example.com", user.path("email").asString());
         assertEquals("Coffee User", user.path("name").asString());
         assertEquals("USER", user.path("role").asString());
-        assertFalse(response.body().contains("password"));
+        assertFalse(user.has("password"));
+        assertFalse(user.has("passwordHash"));
+        assertFalse(user.has("password_hash"));
+        assertFalse(response.body().contains(PASSWORD));
+        assertTrue(user.path("passwordLoginAvailable").asBoolean());
         assertFalse(response.body().contains("hash"));
         var stored =
                 jdbc.queryForObject(
@@ -258,7 +262,12 @@ class IdentityHttpTests extends MySqlIntegrationSupport {
         assertTrue(cookie.contains("SameSite=Strict"));
         assertTrue(cookie.contains("Path=/api/v1/auth"));
         assertFalse(cookie.contains("Secure"));
-        assertFalse(login.body().contains("password"));
+        JsonNode loginUser = body(login).path("user");
+        assertFalse(loginUser.has("password"));
+        assertFalse(loginUser.has("passwordHash"));
+        assertFalse(loginUser.has("password_hash"));
+        assertFalse(login.body().contains(PASSWORD));
+        assertTrue(loginUser.path("passwordLoginAvailable").asBoolean());
         assertFalse(login.body().contains("refreshToken"));
         String refresh = browser.cookie("tucoffee_refresh");
         assertTrue(Base64.getUrlDecoder().decode(refresh).length >= 32);
