@@ -56,4 +56,8 @@ Các API ghi bắt buộc `X-XSRF-TOKEN` đúng với cookie CSRF. Angular lấy
 - `AUTH_COOKIE_SECURE`: production true; local false qua profile local tường minh.
 - Profile bootstrap và tên biến password sẽ được ghi chính xác trong README khi CLI hoàn thành.
 
-Kiểm chứng phải dùng database test riêng hoặc Testcontainers, không xóa dữ liệu tài khoản local của người dùng. API OpenAPI được cập nhật cùng source; tài liệu này chốt các quyết định chung cho backend/frontend.
+Kiểm chứng dùng schema test riêng trên MySQL native cổng 3306, không xóa dữ liệu tài khoản local của người dùng. API OpenAPI được cập nhật cùng source; tài liệu này chốt các quyết định chung cho backend/frontend.
+
+## Cách truy cập dữ liệu
+
+Backend dùng entity JPA và `JpaRepository`, service giữ transaction và khóa hàng điều phối. `UserResponse` DTO có cùng JSON với schema `User` trong hợp đồng này; không trả entity/password hash. Việc chuyển JDBC sang JPA không đổi endpoint, cookie hoặc payload HTTP, không sửa migration V1/V2.

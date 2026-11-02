@@ -14,7 +14,7 @@ spring:
   config:
     import: optional:file:../.env[.properties],optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/${MYSQL_DATABASE:tu_coffee}?connectionTimeZone=UTC&connectTimeout=3000&socketTimeout=5000
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:tu_coffee}?connectionTimeZone=UTC&connectTimeout=3000&socketTimeout=5000
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     hikari:
@@ -59,6 +59,14 @@ management:
         enabled: false
 
 auth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
   jwt-secret: ${AUTH_JWT_SECRET}
   allowed-origins: ${AUTH_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,http://localhost:8080,http://127.0.0.1:8080}
   cookie-secure: ${AUTH_COOKIE_SECURE:true}
+
+turnstile:
+  enabled: ${TURNSTILE_ENABLED:false}
+  site-key: ${TURNSTILE_SITE_KEY:}
+  secret-key: ${TURNSTILE_SECRET_KEY:}
+  hostnames: ${TURNSTILE_HOSTNAMES:localhost,127.0.0.1}

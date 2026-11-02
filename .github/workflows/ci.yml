@@ -9,46 +9,32 @@ jobs:
   foundation:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    services:
-      mysql:
-        image: mysql:8.4.13
-        env:
-          MYSQL_DATABASE: tu_coffee
-          MYSQL_USER: coffee
-          MYSQL_PASSWORD: ci_ephemeral_app
-          MYSQL_ROOT_PASSWORD: ci_ephemeral_root
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=30
-          --health-start-period=30s
     env:
       MYSQL_HOST: 127.0.0.1
       MYSQL_PORT: 3306
       MYSQL_DATABASE: tu_coffee
       MYSQL_USER: coffee
-      MYSQL_PASSWORD: ci_ephemeral_app
+      TEST_MYSQL_HOST: 127.0.0.1
+      TEST_MYSQL_PORT: 3306
+      TEST_MYSQL_USER: coffee
       SERVER_ADDRESS: 127.0.0.1
       SERVER_PORT: 8081
       SPRING_PROFILES_ACTIVE: local
       AUTH_ALLOWED_ORIGINS: http://localhost:4201
       E2E_API_TARGET: http://127.0.0.1:8081
       E2E_ADMIN_EMAIL: admin-ci@example.test
-      CI: 'true'
+      CI: "true"
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
           cache: maven
           cache-dependency-path: backend/pom.xml
       - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '24.18.0'
+          node-version: "24.18.0"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Tạo khóa và mật khẩu tạm cho lần chạy CI
@@ -56,11 +42,22 @@ jobs:
         run: |
           jwt_secret=$(openssl rand -base64 48 | tr -d '\n')
           admin_password=$(openssl rand -base64 24 | tr -d '\n')
+          mysql_password=$(openssl rand -base64 24 | tr -d '\n')
           echo "::add-mask::$jwt_secret"
           echo "::add-mask::$admin_password"
+          echo "::add-mask::$mysql_password"
           echo "AUTH_JWT_SECRET=$jwt_secret" >> "$GITHUB_ENV"
           echo "BOOTSTRAP_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
           echo "E2E_ADMIN_PASSWORD=$admin_password" >> "$GITHUB_ENV"
+          echo "MYSQL_PASSWORD=$mysql_password" >> "$GITHUB_ENV"
+          echo "TEST_MYSQL_PASSWORD=$mysql_password" >> "$GITHUB_ENV"
+      - name: Cài MySQL native trên runner
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+          sudo systemctl start mysql
+          sudo mysql --execute="CREATE DATABASE tu_coffee CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE USER 'coffee'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD'; GRANT ALL PRIVILEGES ON *.* TO 'coffee'@'127.0.0.1';"
       - name: Kiểm tra và đóng gói backend với MySQL
         working-directory: backend
         run: sh ./mvnw -B verify

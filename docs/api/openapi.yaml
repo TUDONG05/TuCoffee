@@ -1,11 +1,116 @@
 openapi: "3.0.3"
 info:
   title: "TuCoffee — API giai đoạn 2"
-  version: "0.2.0"
+  version: "0.3.0"
   description: "JWT HS256 15 phút lưu trong bộ nhớ frontend; refresh opaque cookie, thời hạn tuyệt đối 7 ngày, rotate mỗi lần. Replay thu hồi cả phiên. CSRF cho mọi thao tác ghi; Origin phải thuộc allowlist khi có. Cookie Secure mặc định, local HTTP phải bật profile local. Không có tích điểm/khuyến mãi."
 servers:
   - "url": "http://localhost:8080"
 paths:
+  "/api/v1/auth/turnstile/config":
+    get:
+      operationId: getTurnstileConfig
+      summary: "Cấu hình Turnstile công khai; no-store; không trả Secret Key"
+      responses:
+        "200":
+          description: "Cấu hình xác minh cho email login/register"
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, siteKey]
+                properties:
+                  enabled: { type: boolean }
+                  siteKey: { type: string, nullable: true }
+  "/api/v1/auth/google/config":
+    get:
+      operationId: getGoogleLoginConfig
+      summary: "Cấu hình Google và nonce 5 phút gắn với cookie trình duyệt; không cache"
+      responses:
+        "200":
+          description: "enabled=false khi thiếu GOOGLE_CLIENT_ID; enabled=true cấp cookie HttpOnly tucoffee_google_nonce, SameSite=Strict, path /api/v1/auth/google. Secure mặc định."
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, clientId, nonce]
+                properties:
+                  enabled: { type: boolean }
+                  clientId: { type: string, nullable: true }
+                  nonce: { type: string, nullable: true }
+  "/api/v1/auth/google":
+    post:
+      operationId: googleLogin
+      summary: "Đăng nhập Google hoặc xác nhận liên kết bằng mật khẩu TuCoffee"
+      description: "ID token phải có chữ ký Google, issuer/audience hợp lệ, email_verified=true, chưa hết hạn và nonce khớp cookie. Google sub là định danh; không tự gộp email. Tài khoản mới là USER, không có mật khẩu local. Email trùng cần currentPassword; giữ nguyên quyền của tài khoản hiện có."
+      parameters:
+        - name: X-XSRF-TOKEN
+          in: header
+          required: true
+          schema: { type: string }
+          description: "Lấy từ GET /api/v1/auth/csrf; cần cookie XSRF-TOKEN tương ứng."
+        - name: tucoffee_google_nonce
+          in: cookie
+          required: true
+          schema: { type: string }
+          description: "Cookie HttpOnly do GET /google/config cấp; trình duyệt tự gửi."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [credential]
+              properties:
+                credential:
+                  {
+                    type: string,
+                    maxLength: 16384,
+                    description: "ID token từ Google Identity Services; không lưu/log.",
+                  }
+                currentPassword:
+                  {
+                    type: string,
+                    format: password,
+                    description: "Chỉ gửi khi xác nhận liên kết email đã tồn tại; tối đa 72 byte UTF-8.",
+                  }
+      responses:
+        "200":
+          description: "AuthResponse, refresh cookie như login hiện tại; rotate CSRF và xóa nonce cookie."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400":
+          description: "Dữ liệu/JSON không hợp lệ"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "401":
+          description: "GOOGLE_TOKEN_INVALID, GOOGLE_NONCE_INVALID, INVALID_CREDENTIALS hoặc ACCOUNT_DISABLED"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "403":
+          description: "CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "409":
+          description: "GOOGLE_LINK_REQUIRED: nhập currentPassword và gửi lại với cùng credential trong thời hạn nonce. GOOGLE_IDENTITY_CONFLICT: không thể thay Google đã liên kết."
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "429":
+          description: "RATE_LIMITED; giới hạn xác nhận mật khẩu như login hiện tại"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+        "503":
+          description: "GOOGLE_NOT_CONFIGURED khi GOOGLE_CLIENT_ID trống"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
   "/api/v1/health":
     get:
       operationId: "getHealth"
@@ -17,6 +122,7 @@ paths:
             "application/json":
               schema:
                 $ref: "#/components/schemas/Health"
+
         "503":
           description: "DOWN khi database không sẵn sàng sau khởi động"
           content:
@@ -39,6 +145,11 @@ paths:
       operationId: "register"
       summary: "Đăng ký USER; không tự đăng nhập"
       parameters:
+        - name: X-Turnstile-Token
+          in: header
+          required: false
+          description: "Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register; thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE."
+          schema: { type: string, maxLength: 2048 }
         - "name": "X-XSRF-TOKEN"
           in: "header"
           required: true
@@ -72,6 +183,11 @@ paths:
                   minLength: 10
                   description: "Không trim; tối đa 72 byte UTF-8."
       responses:
+        "503":
+          description: "TURNSTILE_UNAVAILABLE"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "201":
           description: "Thành công"
           content:
@@ -102,11 +218,17 @@ paths:
             "application/problem+json":
               schema:
                 $ref: "#/components/schemas/Problem"
+
   "/api/v1/auth/login":
     post:
       operationId: "login"
       summary: "Đăng nhập và cấp refresh cookie"
       parameters:
+        - name: X-Turnstile-Token
+          in: header
+          required: false
+          description: "Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register; thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE."
+          schema: { type: string, maxLength: 2048 }
         - "name": "X-XSRF-TOKEN"
           in: "header"
           required: true
@@ -133,6 +255,11 @@ paths:
                   type: "string"
                   format: "password"
       responses:
+        "503":
+          description: "TURNSTILE_UNAVAILABLE"
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "200":
           description: "Access mới; Cache-Control: no-store"
           content:
@@ -169,6 +296,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
       description: "Sai email/mật khẩu hoặc tài khoản khóa cùng trả INVALID_CREDENTIALS. Giới hạn 5 lần sai/15 phút theo email và IP."
+
   "/api/v1/auth/refresh":
     post:
       operationId: "refresh"
@@ -550,6 +678,7 @@ components:
         - "address"
         - "role"
         - "active"
+        - "passwordLoginAvailable"
       properties:
         id:
           type: "integer"
@@ -574,6 +703,9 @@ components:
             - "ADMIN"
         active:
           type: "boolean"
+        passwordLoginAvailable:
+          type: boolean
+          description: "false cho tài khoản chỉ đăng nhập Google; không có đổi mật khẩu local."
     AuthResponse:
       type: "object"
       additionalProperties: false
