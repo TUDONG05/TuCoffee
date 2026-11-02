@@ -1,16 +1,73 @@
-.account-page { padding-block: 3rem; }
-.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2rem; }
-h1 { font-size: clamp(2rem, 5vw, 3rem); }
-.eyebrow { margin-bottom: .75rem; }
-.identity-summary { display: flex; align-items: center; gap: .8rem; }
-.identity-summary strong { overflow-wrap: anywhere; }
-.identity-summary small { display: block; color: var(--muted); }
-.avatar { flex-shrink: 0; width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font: 1.5rem Georgia, serif; }
-.profile-grid { display: grid; gap: 1.5rem; }
-.panel { padding: clamp(1.25rem, 3vw, 2rem); border: 1px solid var(--line); background: var(--surface); border-radius: .6rem; }
-.panel-heading { display: flex; gap: 1rem; align-items: baseline; border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; padding-bottom: 1.25rem; }
-.section-number { color: var(--muted); font-size: .75rem; }
-h2 { font: 400 1.6rem Georgia, serif; margin: 0; }
-.panel-heading p { margin: .5rem 0 0; font-size: .85rem; color: var(--muted); }
-.security-note { font-size: .85rem; margin-bottom: 1.5rem; }
-@media (min-width: 900px) { .profile-grid { grid-template-columns: 1.1fr 1fr; align-items: start; } }
+.account-page {
+  padding-block: 3rem;
+}
+.page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+.eyebrow {
+  margin-bottom: 0.75rem;
+}
+.profile-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+.panel {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 0;
+}
+.panel-heading {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+}
+.section-number {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+h2 {
+  font-family: var(--font-family);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0;
+}
+.panel-heading p {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.security-note {
+  font-size: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+nz-alert {
+  display: block;
+  margin-bottom: 1.25rem;
+}
+.password-visibility {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+@media (min-width: 900px) {
+  .profile-grid {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: start;
+  }
+}
+
+.profile-grid:has(> .panel:only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}

@@ -3,14 +3,51 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Subscription, firstValueFrom, timeout } from 'rxjs';
+import {
+  EMPTY,
+  Subject,
+  catchError,
+  debounceTime,
+  defer,
+  exhaustMap,
+  filter,
+  finalize,
+  map,
+  merge,
+  switchMap,
+  tap,
+  timeout,
+} from 'rxjs';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 import { apiError } from '../../core/auth/api-error';
 import { AuthService } from '../../core/auth/auth.service';
 import { User, UserPage } from '../../core/auth/auth.models';
 
+interface UsersQuery {
+  q: string;
+  active: string;
+  page: number;
+}
+
 @Component({
-  selector: 'app-users-page', imports: [ReactiveFormsModule, RouterLink],
-  templateUrl: './users-page.html', styleUrl: './users-page.scss',
+  selector: 'app-users-page',
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    NzAlertModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzSelectModule,
+    NzTagModule,
+  ],
+  templateUrl: './users-page.html',
+  styleUrl: './users-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UsersPage {
@@ -24,35 +61,95 @@ export class UsersPage {
   readonly error = signal('');
   readonly message = signal('');
   readonly pendingUser = signal<User | null>(null);
-  private request?: Subscription;
+  private readonly queries = new Subject<UsersQuery>();
+  private readonly changes = new Subject<User>();
+  private currentQuery: UsersQuery = { q: '', active: '', page: 0 };
 
-  constructor() { this.load(); }
+  constructor() {
+    const filterChanges = this.filters.valueChanges.pipe(
+      debounceTime(300),
+      map(() => this.query(0)),
+      // Compare with the latest request, including manual searches and pagination.
+      filter(
+        (query) => query.q !== this.currentQuery.q || query.active !== this.currentQuery.active,
+      ),
+    );
+    merge(this.queries, filterChanges)
+      .pipe(
+        switchMap((query) =>
+          defer(() => {
+            this.currentQuery = query;
+            this.busy.set(true);
+            this.error.set('');
+            this.result.set(null);
+            this.pendingUser.set(null);
+            let params = new HttpParams().set('page', query.page).set('size', 12);
+            if (query.q) params = params.set('q', query.q);
+            if (query.active) params = params.set('active', query.active);
+            return this.http.get<UserPage>('/api/v1/admin/users', { params }).pipe(
+              timeout(12000),
+              tap((value) => this.result.set(value)),
+              catchError((error: unknown) => {
+                this.error.set(apiError(error));
+                return EMPTY;
+              }),
+              finalize(() => this.busy.set(false)),
+            );
+          }),
+        ),
+        takeUntilDestroyed(this.destroy),
+      )
+      .subscribe();
 
-  load(page = 0): void {
-    this.request?.unsubscribe();
-    this.busy.set(true); this.error.set('');
-    const { q, active } = this.filters.getRawValue();
-    let params = new HttpParams().set('page', page).set('size', 12);
-    if (q.trim()) params = params.set('q', q.trim());
-    if (active) params = params.set('active', active);
-    this.request = this.http.get<UserPage>('/api/v1/admin/users', { params }).pipe(timeout(12000), takeUntilDestroyed(this.destroy)).subscribe({
-      next: (value) => { this.result.set(value); this.busy.set(false); },
-      error: (error: unknown) => { this.error.set(apiError(error)); this.busy.set(false); },
-    });
+    this.changes
+      .pipe(
+        exhaustMap((user) =>
+          defer(() => {
+            this.changing.set(user.id);
+            this.error.set('');
+            this.message.set('');
+            return this.http
+              .patch<User>(`/api/v1/admin/users/${user.id}/active`, { active: !user.active })
+              .pipe(
+                timeout(12000),
+                tap(() => {
+                  this.message.set(
+                    user.active
+                      ? `Đã khóa tài khoản ${user.email}. Các phiên đăng nhập đã kết thúc.`
+                      : `Đã mở tài khoản ${user.email}.`,
+                  );
+                  this.pendingUser.set(null);
+                  this.load(this.currentQuery.page);
+                }),
+                catchError((error: unknown) => {
+                  this.error.set(apiError(error));
+                  return EMPTY;
+                }),
+                finalize(() => this.changing.set(null)),
+              );
+          }),
+        ),
+        takeUntilDestroyed(this.destroy),
+      )
+      .subscribe();
+    this.load();
   }
 
-  async toggle(): Promise<void> {
+  load(page = 0): void {
+    this.queries.next(this.query(page));
+  }
+
+  toggle(): void {
     const user = this.pendingUser();
     if (!user || this.changing() !== null) return;
-    this.changing.set(user.id); this.error.set(''); this.message.set('');
-    try {
-      await firstValueFrom(this.http.patch<User>(`/api/v1/admin/users/${user.id}/active`, { active: !user.active }).pipe(timeout(12000), takeUntilDestroyed(this.destroy)));
-      if (!this.destroy.destroyed) {
-        this.message.set(user.active ? `Đã khóa tài khoản ${user.email}. Các phiên đăng nhập đã kết thúc.` : `Đã mở tài khoản ${user.email}.`);
-        this.pendingUser.set(null);
-        this.load(this.result()?.page ?? 0);
-      }
-    } catch (error) { if (!this.destroy.destroyed) this.error.set(apiError(error)); }
-    finally { if (!this.destroy.destroyed) this.changing.set(null); }
+    this.changes.next(user);
+  }
+
+  private query(page: number): UsersQuery {
+    const { q, active } = this.filters.getRawValue();
+    const normalized = q.trim();
+    const filtersChanged =
+      normalized !== this.currentQuery.q || active !== this.currentQuery.active;
+    return { q: normalized, active, page: filtersChanged ? 0 : page };
   }
 }

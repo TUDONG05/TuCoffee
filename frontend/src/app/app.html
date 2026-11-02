@@ -1,21 +1,165 @@
 <a class="skip-link" href="#main">Đến nội dung chính</a>
 <header class="site-header">
-  <a class="brand" routerLink="/" aria-label="Tu’s Coffee — trang chủ">tu’s<span>coffee</span></a>
+  <a class="brand" routerLink="/" aria-label="Tu’s Coffee — trang chủ">
+    <img src="/logo.png" alt="Tu’s Coffee" width="80" height="80" fetchpriority="high" />
+  </a>
   <nav class="account-nav" aria-label="Tài khoản">
-    @if (auth.user()) {
-      @if (auth.isAdmin()) { <a routerLink="/admin/users" routerLinkActive="active">Quản trị</a> }
-      <a routerLink="/profile" routerLinkActive="active">Tài khoản</a>
-      <button class="nav-button" type="button" (click)="logout()" [disabled]="loggingOut()">{{ loggingOut() ? 'Đang đăng xuất…' : 'Đăng xuất' }}</button>
+    @if (auth.user(); as user) {
+      <button
+        nz-button
+        nzType="text"
+        nz-dropdown
+        [nzDropdownMenu]="accountMenu"
+        nzTrigger="click"
+        nzPlacement="bottomRight"
+        class="account-trigger"
+        type="button"
+        aria-label="Mở menu tài khoản"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="accountMenuOpen()"
+        (nzVisibleChange)="accountMenuOpen.set($event)"
+      >
+        <span class="account-avatar" aria-hidden="true">{{
+          user.name.charAt(0).toUpperCase()
+        }}</span>
+        <span class="account-identity"
+          ><strong>{{ user.name }}</strong
+          ><small>{{ user.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}</small></span
+        >
+        <svg
+          class="account-caret"
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path d="m3 4.5 3 3 3-3" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      </button>
+      <nz-dropdown-menu #accountMenu="nzDropdownMenu">
+        <ul nz-menu class="account-dropdown" aria-label="Tài khoản">
+          <li nz-menu-item><a routerLink="/profile">Tài khoản</a></li>
+          @if (auth.isAdmin()) {
+            <li nz-menu-item><a routerLink="/admin/users">Quản trị</a></li>
+          }
+          <li nz-menu-divider></li>
+          <li nz-menu-item [nzDisabled]="loggingOut()">
+            <button nz-button nzType="text" type="button" class="account-menu-logout"
+              [disabled]="loggingOut()" (click)="logout()">{{ loggingOut() ? 'Đang đăng xuất…' : 'Đăng xuất' }}</button>
+          </li>
+        </ul>
+      </nz-dropdown-menu>
     } @else {
-      <a routerLink="/login" routerLinkActive="active">Đăng nhập</a>
-      <a class="join-link" routerLink="/register" routerLinkActive="active">Tạo tài khoản</a>
-      @if (logoutFailed()) { <button class="nav-button" type="button" (click)="logout()" [disabled]="loggingOut()">Thử đăng xuất lại</button> }
+      <button
+        nz-button
+        nzType="text"
+        class="nav-button"
+        [class.active]="authMode() === 'login'"
+        type="button"
+        (click)="openAuth('login')"
+      >
+        Đăng nhập
+      </button>
+      <button
+        nz-button
+        class="join-link"
+        [class.active]="authMode() === 'register'"
+        type="button"
+        (click)="openAuth('register')"
+      >
+        Tạo tài khoản
+      </button>
+      @if (logoutFailed()) {
+        <button
+          nz-button
+          nzType="text"
+          [nzLoading]="loggingOut()"
+          class="nav-button"
+          type="button"
+          (click)="logout()"
+          [disabled]="loggingOut()"
+        >
+          Thử đăng xuất lại
+        </button>
+      }
     }
   </nav>
 </header>
-@if (auth.notice()) { <p class="session-notice notice" role="status">{{ auth.notice() }}</p> }
+@if (auth.notice()) {
+  <nz-alert class="session-notice" nzType="info" [nzMessage]="auth.notice()" role="status" />
+}
 <main id="main" tabindex="-1"><router-outlet /></main>
 <footer class="site-footer">
-  <span>Tu’s Coffee</span>
-  <a routerLink="/dev/status">Dành cho phát triển · Kiểm tra kết nối</a>
+  <div class="footer-main">
+    <div class="footer-brand">
+      <a class="footer-logo" routerLink="/" aria-label="Tu’s Coffee — trang chủ">
+        <img src="/logo.png" alt="Tu’s Coffee" width="88" height="88" loading="lazy" />
+      </a>
+      <p>Đậm chất cà phê Việt.<br />Một tách cà phê, một khoảng bình yên.</p>
+    </div>
+    <nav class="footer-links" aria-labelledby="footer-explore">
+      <h2 id="footer-explore">Khám phá</h2>
+      <a routerLink="/">Trang chủ</a>
+      <a href="#main">Về đầu trang</a>
+    </nav>
+    <nav class="footer-links" aria-labelledby="footer-account">
+      <h2 id="footer-account">Tài khoản</h2>
+      @if (auth.user()) {
+        <a routerLink="/profile">Hồ sơ cá nhân</a>
+        @if (auth.isAdmin()) {
+          <a routerLink="/admin/users">Quản lý tài khoản</a>
+        }
+      } @else {
+        <button nz-button nzType="link" type="button" (click)="openAuth('login')">
+          Đăng nhập tài khoản
+        </button>
+        <button nz-button nzType="link" type="button" (click)="openAuth('register')">
+          Đăng ký thành viên
+        </button>
+      }
+    </nav>
+  </div>
+  <div class="footer-bottom">
+    <small>© {{ currentYear }} Tu’s Coffee. Bảo lưu mọi quyền.</small>
+    <span>Hương vị Việt, trong từng tách cà phê.</span>
+  </div>
 </footer>
+
+<nz-modal
+  [nzVisible]="authMode() !== null"
+  [nzFooter]="null"
+  [nzCentered]="true"
+  [nzNoAnimation]="true"
+  [nzWidth]="480"
+  [nzClosable]="!modalBusy()"
+  [nzMaskClosable]="false"
+  [nzKeyboard]="!modalBusy()"
+  [nzCloseIcon]="closeIcon"
+  nzClassName="auth-modal"
+  (nzOnCancel)="closeAuth()"
+>
+  <ng-template #closeIcon><span aria-label="Đóng form tài khoản">×</span></ng-template>
+  <ng-container *nzModalContent>
+    @defer (when authMode() !== null) {
+      @if (authMode() === 'login') {
+        <app-auth-page
+          mode="login"
+          [registered]="registered()"
+          (completed)="authCompleted()"
+          (busyChange)="modalBusy.set($event)"
+          (modeChange)="openAuth($event)"
+        />
+      } @else if (authMode() === 'register') {
+        <app-auth-page
+          mode="register"
+          (registeredAccount)="accountRegistered()"
+          (busyChange)="modalBusy.set($event)"
+          (modeChange)="openAuth($event)"
+        />
+      }
+    } @loading {
+      <p role="status">Đang tải form tài khoản…</p>
+    }
+  </ng-container>
+</nz-modal>
