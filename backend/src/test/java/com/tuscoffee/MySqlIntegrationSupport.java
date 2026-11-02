@@ -64,14 +64,15 @@ abstract class MySqlIntegrationSupport {
         return value;
     }
 
+    // Canonical names keep runner environment from overriding test-only auth settings.
     @DynamicPropertySource
     static void isolatedDatabase(DynamicPropertyRegistry properties) {
         properties.add("spring.datasource.url", () -> SERVER + DATABASE + OPTIONS);
         properties.add("spring.datasource.username", () -> USER);
         properties.add("spring.datasource.password", () -> PASSWORD);
-        properties.add("AUTH_JWT_SECRET", () -> Base64.getEncoder().encodeToString(JWT_KEY));
-        properties.add("AUTH_COOKIE_SECURE", () -> "false");
-        properties.add("AUTH_ALLOWED_ORIGINS", () -> "http://localhost:4200");
+        properties.add("auth.jwt-secret", () -> Base64.getEncoder().encodeToString(JWT_KEY));
+        properties.add("auth.cookie-secure", () -> "false");
+        properties.add("auth.allowed-origins", () -> "http://localhost:4200");
         properties.add("debug", () -> "false");
         properties.add("logging.level.root", () -> "INFO");
         properties.add("logging.level.org.springframework", () -> "INFO");
