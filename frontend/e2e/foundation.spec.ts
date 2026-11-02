@@ -30,6 +30,6 @@ test('home remains usable on a small screen', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );
-  await page.getByRole('link', { name: 'Dành cho phát triển · Kiểm tra kết nối' }).click();
-  await expect(page).toHaveURL(/\/dev\/status$/);
+  await page.locator('footer').getByRole('link', { name: 'Trang chủ', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
 });
