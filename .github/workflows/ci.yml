@@ -54,10 +54,9 @@ jobs:
       - name: Cài MySQL native trên runner
         shell: bash
         run: |
-          sudo apt-get update
-          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
+          # Ubuntu runner already includes MySQL; start it without reinstalling packages.
           sudo systemctl start mysql
-          sudo mysql --execute="CREATE DATABASE tu_coffee CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE USER 'coffee'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD'; GRANT ALL PRIVILEGES ON *.* TO 'coffee'@'127.0.0.1';"
+          MYSQL_PWD=root mysql --host=127.0.0.1 --user=root --execute="CREATE DATABASE tu_coffee CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE USER 'coffee'@'127.0.0.1' IDENTIFIED BY '$MYSQL_PASSWORD'; GRANT ALL PRIVILEGES ON *.* TO 'coffee'@'127.0.0.1';"
       - name: Kiểm tra và đóng gói backend với MySQL
         working-directory: backend
         run: sh ./mvnw -B verify
