@@ -1,58 +1,78 @@
-openapi: "3.0.3"
+openapi: 3.0.3
 info:
-  title: "TuCoffee — API giai đoạn 2"
-  version: "0.3.0"
-  description: "JWT HS256 15 phút lưu trong bộ nhớ frontend; refresh opaque cookie, thời hạn tuyệt đối 7 ngày, rotate mỗi lần. Replay thu hồi cả phiên. CSRF cho mọi thao tác ghi; Origin phải thuộc allowlist khi có. Cookie Secure mặc định, local HTTP phải bật profile local. Không có tích điểm/khuyến mãi."
+  title: TuCoffee — API giai đoạn 2
+  version: 0.3.0
+  description: JWT HS256 15 phút lưu trong bộ nhớ frontend; refresh opaque cookie, thời hạn tuyệt đối 7 ngày, rotate mỗi lần.
+    Replay thu hồi cả phiên. CSRF cho mọi thao tác ghi; Origin phải thuộc allowlist khi có. Cookie Secure mặc định, local
+    HTTP phải bật profile local. Không có tích điểm/khuyến mãi.
 servers:
-  - "url": "http://localhost:8080"
+- url: http://localhost:8080
 paths:
-  "/api/v1/auth/turnstile/config":
+  /api/v1/auth/turnstile/config:
     get:
       operationId: getTurnstileConfig
-      summary: "Cấu hình Turnstile công khai; no-store; không trả Secret Key"
+      summary: Cấu hình Turnstile công khai; no-store; không trả Secret Key
       responses:
-        "200":
-          description: "Cấu hình xác minh cho email login/register"
+        '200':
+          description: Cấu hình xác minh cho email login/register
           content:
             application/json:
               schema:
                 type: object
-                required: [enabled, siteKey]
+                required:
+                - enabled
+                - siteKey
                 properties:
-                  enabled: { type: boolean }
-                  siteKey: { type: string, nullable: true }
-  "/api/v1/auth/google/config":
+                  enabled:
+                    type: boolean
+                  siteKey:
+                    type: string
+                    nullable: true
+  /api/v1/auth/google/config:
     get:
       operationId: getGoogleLoginConfig
-      summary: "Cấu hình Google và nonce 5 phút gắn với cookie trình duyệt; không cache"
+      summary: Cấu hình Google và nonce 5 phút gắn với cookie trình duyệt; không cache
       responses:
-        "200":
-          description: "enabled=false khi thiếu GOOGLE_CLIENT_ID; enabled=true cấp cookie HttpOnly tucoffee_google_nonce, SameSite=Strict, path /api/v1/auth/google. Secure mặc định."
+        '200':
+          description: enabled=false khi thiếu GOOGLE_CLIENT_ID; enabled=true cấp cookie HttpOnly tucoffee_google_nonce, SameSite=Strict,
+            path /api/v1/auth/google. Secure mặc định.
           content:
             application/json:
               schema:
                 type: object
-                required: [enabled, clientId, nonce]
+                required:
+                - enabled
+                - clientId
+                - nonce
                 properties:
-                  enabled: { type: boolean }
-                  clientId: { type: string, nullable: true }
-                  nonce: { type: string, nullable: true }
-  "/api/v1/auth/google":
+                  enabled:
+                    type: boolean
+                  clientId:
+                    type: string
+                    nullable: true
+                  nonce:
+                    type: string
+                    nullable: true
+  /api/v1/auth/google:
     post:
       operationId: googleLogin
-      summary: "Đăng nhập Google hoặc xác nhận liên kết bằng mật khẩu TuCoffee"
-      description: "ID token phải có chữ ký Google, issuer/audience hợp lệ, email_verified=true, chưa hết hạn và nonce khớp cookie. Google sub là định danh; không tự gộp email. Tài khoản mới là USER, không có mật khẩu local. Email trùng cần currentPassword; giữ nguyên quyền của tài khoản hiện có."
+      summary: Đăng nhập Google hoặc xác nhận liên kết bằng mật khẩu TuCoffee
+      description: ID token phải có chữ ký Google, issuer/audience hợp lệ, email_verified=true, chưa hết hạn và nonce khớp
+        cookie. Google sub là định danh; không tự gộp email. Tài khoản mới là USER, không có mật khẩu local. Email trùng cần
+        currentPassword; giữ nguyên quyền của tài khoản hiện có.
       parameters:
-        - name: X-XSRF-TOKEN
-          in: header
-          required: true
-          schema: { type: string }
-          description: "Lấy từ GET /api/v1/auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-        - name: tucoffee_google_nonce
-          in: cookie
-          required: true
-          schema: { type: string }
-          description: "Cookie HttpOnly do GET /google/config cấp; trình duyệt tự gửi."
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+        description: Lấy từ GET /api/v1/auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+      - name: tucoffee_google_nonce
+        in: cookie
+        required: true
+        schema:
+          type: string
+        description: Cookie HttpOnly do GET /google/config cấp; trình duyệt tự gửi.
       requestBody:
         required: true
         content:
@@ -60,715 +80,1616 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [credential]
+              required:
+              - credential
               properties:
                 credential:
-                  {
-                    type: string,
-                    maxLength: 16384,
-                    description: "ID token từ Google Identity Services; không lưu/log.",
-                  }
+                  type: string
+                  maxLength: 16384
+                  description: ID token từ Google Identity Services; không lưu/log.
                 currentPassword:
-                  {
-                    type: string,
-                    format: password,
-                    description: "Chỉ gửi khi xác nhận liên kết email đã tồn tại; tối đa 72 byte UTF-8.",
-                  }
+                  type: string
+                  format: password
+                  description: Chỉ gửi khi xác nhận liên kết email đã tồn tại; tối đa 72 byte UTF-8.
       responses:
-        "200":
-          description: "AuthResponse, refresh cookie như login hiện tại; rotate CSRF và xóa nonce cookie."
+        '200':
+          description: AuthResponse, refresh cookie như login hiện tại; rotate CSRF và xóa nonce cookie.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AuthResponse" }
-        "400":
-          description: "Dữ liệu/JSON không hợp lệ"
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Dữ liệu/JSON không hợp lệ
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "401":
-          description: "GOOGLE_TOKEN_INVALID, GOOGLE_NONCE_INVALID, INVALID_CREDENTIALS hoặc ACCOUNT_DISABLED"
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: GOOGLE_TOKEN_INVALID, GOOGLE_NONCE_INVALID, INVALID_CREDENTIALS hoặc ACCOUNT_DISABLED
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "403":
-          description: "CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "409":
-          description: "GOOGLE_LINK_REQUIRED: nhập currentPassword và gửi lại với cùng credential trong thời hạn nonce. GOOGLE_IDENTITY_CONFLICT: không thể thay Google đã liên kết."
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: 'GOOGLE_LINK_REQUIRED: nhập currentPassword và gửi lại với cùng credential trong thời hạn nonce. GOOGLE_IDENTITY_CONFLICT:
+            không thể thay Google đã liên kết.'
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "429":
-          description: "RATE_LIMITED; giới hạn xác nhận mật khẩu như login hiện tại"
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: RATE_LIMITED; giới hạn xác nhận mật khẩu như login hiện tại
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-
-        "503":
-          description: "GOOGLE_NOT_CONFIGURED khi GOOGLE_CLIENT_ID trống"
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '503':
+          description: GOOGLE_NOT_CONFIGURED khi GOOGLE_CLIENT_ID trống
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-  "/api/v1/health":
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/health:
     get:
-      operationId: "getHealth"
-      summary: "Trạng thái tổng quát backend và database"
+      operationId: getHealth
+      summary: Trạng thái tổng quát backend và database
       responses:
-        "200":
-          description: "UP; không có chi tiết kết nối"
+        '200':
+          description: UP; không có chi tiết kết nối
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/Health"
-
-        "503":
-          description: "DOWN khi database không sẵn sàng sau khởi động"
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: DOWN khi database không sẵn sàng sau khởi động
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/Health"
-  "/api/v1/auth/csrf":
+                $ref: '#/components/schemas/Health'
+  /api/v1/auth/csrf:
     get:
-      operationId: "getCsrf"
-      summary: "Lấy CSRF cookie/token; không cache"
+      operationId: getCsrf
+      summary: Lấy CSRF cookie/token; không cache
       responses:
-        "200":
-          description: "Thành công"
+        '200':
+          description: Thành công
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/Csrf"
-  "/api/v1/auth/register":
+                $ref: '#/components/schemas/Csrf'
+  /api/v1/auth/register:
     post:
-      operationId: "register"
-      summary: "Đăng ký USER; không tự đăng nhập"
+      operationId: register
+      summary: Đăng ký USER; không tự đăng nhập
       parameters:
-        - name: X-Turnstile-Token
-          in: header
-          required: false
-          description: "Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register; thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE."
-          schema: { type: string, maxLength: 2048 }
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-Turnstile-Token
+        in: header
+        required: false
+        description: Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register;
+          thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE.
+        schema:
+          type: string
+          maxLength: 2048
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       requestBody:
         required: true
         content:
-          "application/json":
+          application/json:
             schema:
-              type: "object"
+              type: object
               additionalProperties: false
               required:
-                - "name"
-                - "email"
-                - "password"
+              - name
+              - email
+              - password
               properties:
                 name:
-                  type: "string"
+                  type: string
                   minLength: 2
                   maxLength: 100
                 email:
-                  type: "string"
-                  format: "email"
+                  type: string
+                  format: email
                   maxLength: 150
-                  description: "Trim/chữ thường"
+                  description: Trim/chữ thường
                 password:
-                  type: "string"
-                  format: "password"
+                  type: string
+                  format: password
                   minLength: 10
-                  description: "Không trim; tối đa 72 byte UTF-8."
+                  description: Không trim; tối đa 72 byte UTF-8.
       responses:
-        "503":
-          description: "TURNSTILE_UNAVAILABLE"
+        '503':
+          description: TURNSTILE_UNAVAILABLE
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "201":
-          description: "Thành công"
-          content:
-            "application/json":
               schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                $ref: '#/components/schemas/Problem'
+        '201':
+          description: Thành công
           content:
-            "application/problem+json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: "EMAIL_EXISTS"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-
-  "/api/v1/auth/login":
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: EMAIL_EXISTS
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/auth/login:
     post:
-      operationId: "login"
-      summary: "Đăng nhập và cấp refresh cookie"
+      operationId: login
+      summary: Đăng nhập và cấp refresh cookie
       parameters:
-        - name: X-Turnstile-Token
-          in: header
-          required: false
-          description: "Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register; thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE."
-          schema: { type: string, maxLength: 2048 }
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-Turnstile-Token
+        in: header
+        required: false
+        description: Bắt buộc khi GET /auth/turnstile/config trả enabled=true. Token dùng một lần, action tương ứng login/register;
+          thiếu/sai trả 400 TURNSTILE_REQUIRED/INVALID. Provider lỗi trả 503 TURNSTILE_UNAVAILABLE.
+        schema:
+          type: string
+          maxLength: 2048
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       requestBody:
         required: true
         content:
-          "application/json":
+          application/json:
             schema:
-              type: "object"
+              type: object
               additionalProperties: false
               required:
-                - "email"
-                - "password"
+              - email
+              - password
               properties:
                 email:
-                  type: "string"
-                  format: "email"
+                  type: string
+                  format: email
                   maxLength: 150
-                  description: "Trim/chữ thường"
+                  description: Trim/chữ thường
                 password:
-                  type: "string"
-                  format: "password"
+                  type: string
+                  format: password
       responses:
-        "503":
-          description: "TURNSTILE_UNAVAILABLE"
+        '503':
+          description: TURNSTILE_UNAVAILABLE
           content:
             application/problem+json:
-              schema: { $ref: "#/components/schemas/Problem" }
-        "200":
-          description: "Access mới; Cache-Control: no-store"
-          content:
-            "application/json":
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: '#/components/schemas/Problem'
+        '200':
+          description: 'Access mới; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
           headers:
             Set-Cookie:
-              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              description: tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile
+                local.
               schema:
-                type: "string"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                type: string
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "429":
-          description: "RATE_LIMITED"
+                $ref: '#/components/schemas/Problem'
+        '429':
+          description: RATE_LIMITED
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-      description: "Sai email/mật khẩu hoặc tài khoản khóa cùng trả INVALID_CREDENTIALS. Giới hạn 5 lần sai/15 phút theo email và IP."
-
-  "/api/v1/auth/refresh":
+                $ref: '#/components/schemas/Problem'
+      description: Sai email/mật khẩu hoặc tài khoản khóa cùng trả INVALID_CREDENTIALS. Giới hạn 5 lần sai/15 phút theo email
+        và IP.
+  /api/v1/auth/refresh:
     post:
-      operationId: "refresh"
-      summary: "Rotate refresh, không kéo dài hạn tuyệt đối"
+      operationId: refresh
+      summary: Rotate refresh, không kéo dài hạn tuyệt đối
       parameters:
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       responses:
-        "200":
-          description: "Access mới; Cache-Control: no-store"
+        '200':
+          description: 'Access mới; Cache-Control: no-store'
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: '#/components/schemas/AuthResponse'
           headers:
             Set-Cookie:
-              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              description: tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile
+                local.
               schema:
-                type: "string"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                type: string
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
+                $ref: '#/components/schemas/Problem'
       security:
-        - "refreshCookie": []
-      description: "Body rỗng. Single flight trong tab, Web Locks giữa tab. Không tự retry nếu mất phản hồi mơ hồ; đăng nhập lại."
-  "/api/v1/auth/logout":
+      - refreshCookie: []
+      description: Body rỗng. Single flight trong tab, Web Locks giữa tab. Không tự retry nếu mất phản hồi mơ hồ; đăng nhập
+        lại.
+  /api/v1/auth/logout:
     post:
-      operationId: "logout"
-      summary: "Thu hồi phiên và xóa cookie"
+      operationId: logout
+      summary: Thu hồi phiên và xóa cookie
       parameters:
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       responses:
-        "204":
-          description: "Đã thu hồi phiên, xóa refresh và CSRF cookie"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+        '204':
+          description: Đã thu hồi phiên, xóa refresh và CSRF cookie
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-      description: "Idempotent. Cookie hoặc bearer kể cả access hết hạn. CSRF vẫn bắt buộc. Các phiên khác giữ nguyên."
-  "/api/v1/users/me":
+                $ref: '#/components/schemas/Problem'
+      description: Idempotent. Cookie hoặc bearer kể cả access hết hạn. CSRF vẫn bắt buộc. Các phiên khác giữ nguyên.
+  /api/v1/users/me:
     get:
-      operationId: "getProfile"
-      summary: "Hồ sơ hiện tại"
+      operationId: getProfile
+      summary: Hồ sơ hiện tại
       security:
-        - "bearerAuth": []
+      - bearerAuth: []
       responses:
-        "200":
-          description: "Thành công"
+        '200':
+          description: Thành công
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/User"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
+                $ref: '#/components/schemas/Problem'
     patch:
-      operationId: "updateProfile"
-      summary: "Cập nhật đủ name, phone, address"
+      operationId: updateProfile
+      summary: Cập nhật đủ name, phone, address
       parameters:
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       requestBody:
         required: true
         content:
-          "application/json":
+          application/json:
             schema:
-              type: "object"
+              type: object
               additionalProperties: false
               required:
-                - "name"
-                - "phone"
-                - "address"
+              - name
+              - phone
+              - address
               properties:
                 name:
-                  type: "string"
+                  type: string
                   minLength: 2
                   maxLength: 100
                 phone:
-                  type: "string"
+                  type: string
                   nullable: true
-                  pattern: "^0[35789]\\d{8}$"
+                  pattern: ^0[35789]\d{8}$
                 address:
-                  type: "string"
+                  type: string
                   nullable: true
                   maxLength: 300
       responses:
-        "200":
-          description: "Thành công"
+        '200':
+          description: Thành công
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
+                $ref: '#/components/schemas/Problem'
       security:
-        - "bearerAuth": []
-      description: "Gửi đủ ba trường; phone/address có thể null. Không sửa email/role/active."
-  "/api/v1/users/me/password":
+      - bearerAuth: []
+      description: Gửi đủ ba trường; phone/address có thể null. Không sửa email/role/active.
+  /api/v1/users/me/password:
     put:
-      operationId: "changePassword"
-      summary: "Đổi mật khẩu, thay mọi phiên cũ bằng một phiên mới"
+      operationId: changePassword
+      summary: Đổi mật khẩu, thay mọi phiên cũ bằng một phiên mới
       parameters:
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
       requestBody:
         required: true
         content:
-          "application/json":
+          application/json:
             schema:
-              type: "object"
+              type: object
               additionalProperties: false
               required:
-                - "currentPassword"
-                - "newPassword"
+              - currentPassword
+              - newPassword
               properties:
                 currentPassword:
-                  type: "string"
-                  format: "password"
+                  type: string
+                  format: password
                 newPassword:
-                  type: "string"
-                  format: "password"
+                  type: string
+                  format: password
                   minLength: 10
-                  description: "Không trim; tối đa 72 byte UTF-8."
+                  description: Không trim; tối đa 72 byte UTF-8.
       responses:
-        "200":
-          description: "Access mới; Cache-Control: no-store"
+        '200':
+          description: 'Access mới; Cache-Control: no-store'
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/AuthResponse"
+                $ref: '#/components/schemas/AuthResponse'
           headers:
             Set-Cookie:
-              description: "tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile local."
+              description: tucoffee_refresh; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth. Secure=false chỉ profile
+                local.
               schema:
-                type: "string"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                type: string
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
+                $ref: '#/components/schemas/Problem'
       security:
-        - "bearerAuth": []
-      description: "Mật khẩu cũ sai trả INVALID_CURRENT_PASSWORD 400. Revoke tất cả sid cũ, cấp access/cookie sid mới, giữ hạn tuyệt đối của phiên hiện tại. Lấy lại CSRF sau thành công."
-  "/api/v1/admin/users":
+      - bearerAuth: []
+      description: Mật khẩu cũ sai trả INVALID_CURRENT_PASSWORD 400. Revoke tất cả sid cũ, cấp access/cookie sid mới, giữ
+        hạn tuyệt đối của phiên hiện tại. Lấy lại CSRF sau thành công.
+  /api/v1/admin/users:
     get:
-      operationId: "listUsers"
-      summary: "ADMIN tìm kiếm, lọc và phân trang tài khoản theo id"
+      operationId: listUsers
+      summary: ADMIN tìm kiếm, lọc và phân trang tài khoản theo id
       security:
-        - "bearerAuth": []
+      - bearerAuth: []
       parameters:
-        - "name": "q"
-          in: "query"
-          schema:
-            type: "string"
-            maxLength: 100
-            default: ""
-        - "name": "active"
-          in: "query"
-          schema:
-            type: "boolean"
-        - "name": "page"
-          in: "query"
-          schema:
-            type: "integer"
-            minimum: 0
-            maximum: 1000000
-            default: 0
-        - "name": "size"
-          in: "query"
-          schema:
-            type: "integer"
-            minimum: 1
-            maximum: 100
-            default: 12
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 100
+          default: ''
+      - name: active
+        in: query
+        schema:
+          type: boolean
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 12
       responses:
-        "200":
-          description: "Thành công"
+        '200':
+          description: Thành công
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/UserPage"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                $ref: '#/components/schemas/UserPage'
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-  "/api/v1/admin/users/{id}/active":
+                $ref: '#/components/schemas/Problem'
+  /api/v1/admin/users/{id}/active:
     patch:
-      operationId: "setUserActive"
-      summary: "ADMIN khóa/mở tài khoản"
+      operationId: setUserActive
+      summary: ADMIN khóa/mở tài khoản
       parameters:
-        - "name": "X-XSRF-TOKEN"
-          in: "header"
-          required: true
-          description: "Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng."
-          schema:
-            type: "string"
-        - "name": "id"
-          in: "path"
-          required: true
-          schema:
-            type: "integer"
-            format: "int64"
-            minimum: 1
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /auth/csrf; cần cookie XSRF-TOKEN tương ứng.
+        schema:
+          type: string
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
       requestBody:
         required: true
         content:
-          "application/json":
+          application/json:
             schema:
-              type: "object"
+              type: object
               additionalProperties: false
               required:
-                - "active"
+              - active
               properties:
                 active:
-                  type: "boolean"
+                  type: boolean
       responses:
-        "200":
-          description: "Thành công"
+        '200':
+          description: Thành công
           content:
-            "application/json":
+            application/json:
               schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          description: "Validation/JSON/trường ngoài allowlist không hợp lệ"
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Validation/JSON/trường ngoài allowlist không hợp lệ
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "401":
-          description: "Xác thực/phiên không hợp lệ; xem code"
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Xác thực/phiên không hợp lệ; xem code
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "403":
-          description: "FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN"
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: FORBIDDEN, CSRF_INVALID hoặc ORIGIN_FORBIDDEN
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "404":
-          description: "Không tìm thấy tài khoản"
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy tài khoản
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
-        "409":
-          description: "ADMIN_LOCK_NOT_ALLOWED"
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: ADMIN_LOCK_NOT_ALLOWED
           content:
-            "application/problem+json":
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/Problem"
+                $ref: '#/components/schemas/Problem'
       security:
-        - "bearerAuth": []
-      description: "Khóa thu hồi mọi phiên; mở khóa không phục hồi phiên cũ. Cấm tự khóa hoặc khóa ADMIN hoạt động cuối, kể cả đồng thời."
+      - bearerAuth: []
+      description: Khóa thu hồi mọi phiên; mở khóa không phục hồi phiên cũ. Cấm tự khóa hoặc khóa ADMIN hoạt động cuối, kể
+        cả đồng thời.
+  /api/v1/categories:
+    get:
+      summary: Danh mục đang hoạt động
+      operationId: catalog1
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /api/v1/products:
+    get:
+      summary: Thực đơn công khai
+      operationId: catalog2
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - &id002
+        name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 100
+      - &id003
+        name: categoryId
+        in: query
+        schema: &id001
+          type: integer
+          format: int64
+          minimum: 1
+      - &id004
+        name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          default: 0
+      - &id005
+        name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 12
+      - &id006
+        name: sort
+        in: query
+        schema:
+          type: string
+          enum:
+          - id
+          - name
+          - priceAsc
+          - priceDesc
+          default: id
+  /api/v1/products/{id}:
+    get:
+      summary: Chi tiết món đang bán
+      operationId: catalog3
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - &id007
+        name: id
+        in: path
+        required: true
+        schema: *id001
+  /api/v1/admin/categories:
+    get:
+      summary: ADMIN danh mục
+      operationId: catalog4
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      security:
+      - bearerAuth: []
+    post:
+      summary: Thêm Category
+      operationId: catalog6
+      responses:
+        '201':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: &id008
+                  type: string
+                  maxLength: 100
+                slug: &id009
+                  type: string
+                  maxLength: 120
+              required:
+              - name
+              - slug
+  /api/v1/admin/products:
+    get:
+      summary: ADMIN sản phẩm
+      operationId: catalog5
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPage'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id002
+      - *id003
+      - *id004
+      - *id005
+      - *id006
+      - name: active
+        in: query
+        schema:
+          type: boolean
+      security:
+      - bearerAuth: []
+    post:
+      summary: Thêm Product
+      operationId: catalog9
+      responses:
+        '201':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                categoryId: *id001
+                name: &id011
+                  type: string
+                  maxLength: 200
+                description: &id012
+                  type: string
+                  nullable: true
+                  maxLength: 10000
+                priceVnd: &id013
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  maximum: 100000000
+              required:
+              - categoryId
+              - name
+              - priceVnd
+  /api/v1/admin/categories/{id}:
+    put:
+      summary: Sửa Category theo version
+      operationId: catalog7
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id007
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: *id008
+                slug: *id009
+                version: &id010
+                  type: integer
+                  format: int64
+                  minimum: 0
+              required:
+              - name
+              - slug
+              - version
+  /api/v1/admin/categories/{id}/active:
+    patch:
+      summary: Bật/tắt Category
+      operationId: catalog8
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id007
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                active:
+                  type: boolean
+                version: *id010
+              required:
+              - active
+              - version
+  /api/v1/admin/products/{id}:
+    put:
+      summary: Sửa Product theo version
+      operationId: catalog10
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id007
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                categoryId: *id001
+                name: *id011
+                description: *id012
+                priceVnd: *id013
+                version: *id010
+              required:
+              - categoryId
+              - name
+              - priceVnd
+              - version
+  /api/v1/admin/products/{id}/active:
+    patch:
+      summary: Bật/tắt Product
+      operationId: catalog11
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id007
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                active:
+                  type: boolean
+                version: *id010
+              required:
+              - active
+              - version
+  /api/v1/admin/products/{id}/image:
+    post:
+      summary: Upload JPEG/PNG/WebP tối đa5MB
+      operationId: catalog12
+      responses:
+        '200':
+          description: Thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Dữ liệu không hợp lệ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '404':
+          description: Không tìm thấy
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          description: Chưa đăng nhập
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '403':
+          description: Thiếu quyền/CSRF
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '409':
+          description: Trùng dữ liệu hoặc phiên bản cũ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '413':
+          description: Ảnh quá lớn
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '415':
+          description: Ảnh không hỗ trợ
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+      parameters:
+      - *id007
+      - name: version
+        in: query
+        required: true
+        schema: *id010
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        schema:
+          type: string
+      security:
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+  /api/v1/catalog/images/{filename}:
+    get:
+      summary: Ảnh an toàn theo tên do server cấp
+      operationId: getCatalogImage
+      parameters:
+      - name: filename
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Ảnh
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Không tìm thấy
 components:
   securitySchemes:
     bearerAuth:
-      type: "http"
-      scheme: "bearer"
-      bearerFormat: "JWT"
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     refreshCookie:
-      type: "apiKey"
-      in: "cookie"
-      name: "tucoffee_refresh"
+      type: apiKey
+      in: cookie
+      name: tucoffee_refresh
   schemas:
     Health:
-      type: "object"
+      type: object
       additionalProperties: false
       required:
-        - "status"
+      - status
       properties:
         status:
-          type: "string"
+          type: string
           enum:
-            - "UP"
-            - "DOWN"
+          - UP
+          - DOWN
     Csrf:
-      type: "object"
+      type: object
       additionalProperties: false
       required:
-        - "headerName"
-        - "token"
+      - headerName
+      - token
       properties:
         headerName:
-          type: "string"
+          type: string
           enum:
-            - "X-XSRF-TOKEN"
+          - X-XSRF-TOKEN
         token:
-          type: "string"
+          type: string
     User:
-      type: "object"
+      type: object
       additionalProperties: false
       required:
-        - "id"
-        - "name"
-        - "email"
-        - "phone"
-        - "address"
-        - "role"
-        - "active"
-        - "passwordLoginAvailable"
+      - id
+      - name
+      - email
+      - phone
+      - address
+      - role
+      - active
+      - passwordLoginAvailable
       properties:
         id:
-          type: "integer"
-          format: "int64"
+          type: integer
+          format: int64
         name:
-          type: "string"
+          type: string
         email:
-          type: "string"
-          format: "email"
+          type: string
+          format: email
           maxLength: 150
-          description: "Trim/chữ thường"
+          description: Trim/chữ thường
         phone:
-          type: "string"
+          type: string
           nullable: true
         address:
-          type: "string"
+          type: string
           nullable: true
         role:
-          type: "string"
+          type: string
           enum:
-            - "USER"
-            - "ADMIN"
+          - USER
+          - ADMIN
         active:
-          type: "boolean"
+          type: boolean
         passwordLoginAvailable:
           type: boolean
-          description: "false cho tài khoản chỉ đăng nhập Google; không có đổi mật khẩu local."
+          description: false cho tài khoản chỉ đăng nhập Google; không có đổi mật khẩu local.
     AuthResponse:
-      type: "object"
+      type: object
       additionalProperties: false
       required:
-        - "accessToken"
-        - "expiresIn"
-        - "user"
+      - accessToken
+      - expiresIn
+      - user
       properties:
         accessToken:
-          type: "string"
-          description: "JWT chứa sub, sid, iss, iat, exp. Không ghi vào web storage/URL."
+          type: string
+          description: JWT chứa sub, sid, iss, iat, exp. Không ghi vào web storage/URL.
         expiresIn:
-          type: "integer"
+          type: integer
           enum:
-            - 900
+          - 900
         user:
-          $ref: "#/components/schemas/User"
+          $ref: '#/components/schemas/User'
     UserPage:
-      type: "object"
+      type: object
       additionalProperties: false
       required:
-        - "items"
-        - "page"
-        - "size"
-        - "totalItems"
-        - "totalPages"
+      - items
+      - page
+      - size
+      - totalItems
+      - totalPages
       properties:
         items:
-          type: "array"
+          type: array
           items:
-            $ref: "#/components/schemas/User"
+            $ref: '#/components/schemas/User'
         page:
-          type: "integer"
+          type: integer
         size:
-          type: "integer"
+          type: integer
         totalItems:
-          type: "integer"
-          format: "int64"
+          type: integer
+          format: int64
         totalPages:
-          type: "integer"
+          type: integer
     Problem:
-      type: "object"
+      type: object
       required:
-        - "type"
-        - "title"
-        - "status"
-        - "detail"
-        - "instance"
+      - type
+      - title
+      - status
+      - detail
+      - instance
       properties:
         type:
-          type: "string"
+          type: string
         title:
-          type: "string"
+          type: string
         status:
-          type: "integer"
+          type: integer
         detail:
-          type: "string"
+          type: string
         instance:
-          type: "string"
+          type: string
         code:
-          type: "string"
-          description: "Mã lỗi nghiệp vụ/bảo mật; lỗi cú pháp JSON do framework có thể không có trường này."
+          type: string
+          description: Mã lỗi nghiệp vụ/bảo mật; lỗi cú pháp JSON do framework có thể không có trường này.
         fieldErrors:
-          type: "object"
+          type: object
           additionalProperties:
-            type: "string"
+            type: string
+    Category:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        name: *id008
+        slug: *id009
+        active:
+          type: boolean
+        version: *id010
+      required:
+      - id
+      - name
+      - slug
+      - active
+      - version
+    Product:
+      type: object
+      additionalProperties: false
+      properties:
+        id: *id001
+        name: *id011
+        description: *id012
+        priceVnd: *id013
+        imageUrl:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        version: *id010
+        category:
+          $ref: '#/components/schemas/Category'
+      required:
+      - id
+      - name
+      - description
+      - priceVnd
+      - imageUrl
+      - active
+      - version
+      - category
+    ProductPage:
+      type: object
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+      required:
+      - items
+      - page
+      - size
+      - totalItems
+      - totalPages

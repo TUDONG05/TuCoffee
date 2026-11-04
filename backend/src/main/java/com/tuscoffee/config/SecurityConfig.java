@@ -75,6 +75,9 @@ public class SecurityConfig {
                                 authorize
                                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()
+                                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                "/api/v1/categories", "/api/v1/products", "/api/v1/products/**",
+                                                "/api/v1/catalog/images/**").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
                                         .requestMatchers("/api/v1/users/**")

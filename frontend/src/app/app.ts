@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
 import { AuthService } from './core/auth/auth.service';
 import { AuthPage } from './features/auth/auth-page';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
@@ -11,6 +13,7 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
 @Component({
   imports: [
     RouterLink,
+    RouterLinkActive,
     RouterOutlet,
     AuthPage,
     NzAlertModule,
@@ -29,6 +32,10 @@ export class App {
   readonly currentYear = new Date().getFullYear();
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  readonly isAdminArea = toSignal(this.router.events.pipe(
+    filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+    map(event => /^\/admin(?:[/?#]|$)/.test(event.urlAfterRedirects)),
+  ), { initialValue: /^\/admin(?:[/?#]|$)/.test(this.router.url) });
   readonly authMode = signal<'login' | 'register' | null>(null);
   readonly modalBusy = signal(false);
   readonly registered = signal(false);
@@ -51,15 +58,14 @@ export class App {
     this.authMode.set('login');
   }
   readonly loggingOut = signal(false);
-  readonly logoutFailed = signal(false);
+  readonly logoutFailed = this.auth.logoutFailed;
   async logout(): Promise<void> {
     if (this.loggingOut()) return;
     this.loggingOut.set(true);
     try {
       await this.auth.logout();
-      this.logoutFailed.set(false);
     } catch {
-      this.logoutFailed.set(true);
+      // The shared auth state keeps the retry action available across layouts.
     } finally {
       this.loggingOut.set(false);
       await this.router.navigate(['/login']);

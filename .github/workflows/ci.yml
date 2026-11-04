@@ -76,7 +76,7 @@ jobs:
           --bootstrap.admin.name="CI Administrator" --bootstrap.admin.email="$E2E_ADMIN_EMAIL"
           --debug=false
       - name: Khởi động backend cho smoke test
-        run: java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar --debug=false > /tmp/tu-coffee-api.log 2>&1 &
+        run: java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar --debug=false --catalog.seed.enabled=true > /tmp/tu-coffee-api.log 2>&1 &
       - name: Chờ health check
         run: curl --fail --retry 30 --retry-all-errors --retry-delay 2 --max-time 5 http://127.0.0.1:8081/api/v1/health
       - name: Cài Chromium cho smoke test

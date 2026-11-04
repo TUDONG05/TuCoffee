@@ -1,13 +1,16 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { NzButtonModule } from 'ng-zorro-antd/button';
 
 @Component({
   selector: 'app-home',
+  imports:[RouterLink,NzButtonModule],
   template: `
     <section class="welcome" aria-labelledby="welcome-title">
       <p class="eyebrow">TU’S COFFEE</p>
       <h1 id="welcome-title">Một tách cà phê.<br />Một khoảng bình yên.</h1>
       <p class="intro">Chào bạn đến với Tu’s Coffee.</p>
-      <p class="opening-note">Website đang được xây dựng. Hẹn gặp bạn khi thực đơn sẵn sàng.</p>
+      <a nz-button nzType="primary" nzSize="large" routerLink="/menu">Khám phá thực đơn</a>
     </section>
   `,
   styles: `

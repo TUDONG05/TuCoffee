@@ -1,11 +1,6 @@
-<section class="users-page" aria-labelledby="users-title">
+<section class="catalog-admin users-page" aria-labelledby="users-title">
   <div class="page-heading">
-    <div>
-      <p class="eyebrow">QUẢN TRỊ · TÀI KHOẢN</p>
-      <h1 id="users-title">Quản lý tài khoản</h1>
-      <p class="muted">Tra cứu và quản lý quyền truy cập của khách hàng.</p>
-    </div>
-    <a routerLink="/profile">← Hồ sơ của tôi</a>
+    <h1 id="users-title">Quản lý tài khoản</h1>
   </div>
   @if (!auth.user()) {
     <p class="notice error" role="alert">
@@ -93,65 +88,84 @@
         <p role="status" class="loading-message">Đang tải danh sách tài khoản…</p>
       }
       @if (result(); as data) {
-        <div class="results-header">
-          <strong>{{ data.totalItems }} tài khoản</strong
-          ><span>Trang {{ data.page + 1 }} / {{ data.totalPages || 1 }}</span>
+        <div
+          class="table-region users-table"
+          role="region"
+          aria-label="Danh sách tài khoản"
+          tabindex="0"
+        >
+          <nz-table
+            #table
+            [nzData]="data.items"
+            [nzShowPagination]="false"
+            [nzFrontPagination]="false"
+            [nzLoading]="busy()"
+            [nzNoResult]="emptyUsers"
+          >
+            <thead>
+              <tr>
+                <th scope="col">Tài khoản</th>
+                <th scope="col">Vai trò</th>
+                <th scope="col">Trạng thái</th>
+                <th scope="col">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of table.data; track user.id) {
+                <tr>
+                  <td>
+                    <div class="user-info">
+                      <strong
+                        >{{ user.name }}
+                        @if (user.id === auth.user()?.id) {
+                          <span class="self-label">Bạn</span>
+                        }
+                      </strong>
+                      <span>{{ user.email }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <nz-tag>{{ user.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}</nz-tag>
+                  </td>
+                  <td>
+                    <nz-tag [nzColor]="user.active ? 'success' : 'default'">{{
+                      user.active ? 'Hoạt động' : 'Đã khóa'
+                    }}</nz-tag>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button
+                        nz-button
+                        type="button"
+                        [disabled]="user.id === auth.user()?.id || changing() !== null || busy()"
+                        [attr.aria-label]="(user.active ? 'Khóa ' : 'Mở khóa ') + user.email"
+                        (click)="pendingUser.set(user)"
+                      >
+                        {{ user.active ? 'Khóa' : 'Mở khóa' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </nz-table>
+          <ng-template #emptyUsers>
+            <div class="empty-state">
+              <h2>Chưa có kết quả phù hợp</h2>
+              <p>Thử đổi tên, email hoặc bộ lọc trạng thái.</p>
+            </div>
+          </ng-template>
         </div>
-        @if (data.items.length) {
-          <ul class="user-list">
-            @for (user of data.items; track user.id) {
-              <li class="user-row">
-                <div class="user-info">
-                  <strong
-                    >{{ user.name }}
-                    @if (user.id === auth.user()?.id) {
-                      <span class="self-label">Bạn</span>
-                    }</strong
-                  ><span>{{ user.email }}</span>
-                </div>
-                <nz-tag>{{ user.role === 'ADMIN' ? 'Quản trị viên' : 'Khách hàng' }}</nz-tag>
-                <nz-tag [nzColor]="user.active ? 'success' : 'error'">{{
-                  user.active ? 'Hoạt động' : 'Đã khóa'
-                }}</nz-tag>
-                <button
-                  nz-button
-                  nzSize="large"
-                  type="button"
-                  class="row-action"
-                  [disabled]="user.id === auth.user()?.id || changing() !== null || busy()"
-                  [attr.aria-label]="(user.active ? 'Khóa ' : 'Mở khóa ') + user.email"
-                  (click)="pendingUser.set(user)"
-                >
-                  {{ user.active ? 'Khóa' : 'Mở khóa' }}
-                </button>
-              </li>
-            }
-          </ul>
-        } @else {
-          <div class="empty-state">
-            <h2>Chưa có kết quả phù hợp</h2>
-            <p>Thử đổi tên, email hoặc bộ lọc trạng thái.</p>
-          </div>
-        }
-        <nav class="pagination" aria-label="Phân trang tài khoản">
-          <button
-            nz-button
-            nzSize="large"
-            type="button"
-            [disabled]="data.page === 0 || busy() || changing() !== null"
-            (click)="load(data.page - 1)"
-          >
-            ← Trang trước</button
-          ><button
-            nz-button
-            nzSize="large"
-            type="button"
-            [disabled]="data.page + 1 >= data.totalPages || busy() || changing() !== null"
-            (click)="load(data.page + 1)"
-          >
-            Trang sau →
-          </button>
-        </nav>
+        <p class="count" aria-live="polite">{{ data.totalItems }} tài khoản</p>
+        <nz-pagination
+          [nzPageIndex]="data.page + 1"
+          [nzTotal]="data.totalItems"
+          [nzPageSize]="pageSize"
+          [nzShowSizeChanger]="false"
+          [nzDisabled]="busy() || changing() !== null"
+          (nzPageIndexChange)="load($event - 1)"
+          aria-label="Phân trang tài khoản"
+        />
       } @else if (error()) {
         <button nz-button nzSize="large" type="button" (click)="load()">Thử tải lại</button>
       }

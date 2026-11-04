@@ -22,7 +22,9 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { apiError } from '../../core/auth/api-error';
 import { AuthService } from '../../core/auth/auth.service';
@@ -43,7 +45,9 @@ interface UsersQuery {
     NzButtonModule,
     NzFormModule,
     NzInputModule,
+    NzPaginationModule,
     NzSelectModule,
+    NzTableModule,
     NzTagModule,
   ],
   templateUrl: './users-page.html',
@@ -54,6 +58,7 @@ export class UsersPage {
   private readonly http = inject(HttpClient);
   private readonly destroy = inject(DestroyRef);
   readonly auth = inject(AuthService);
+  readonly pageSize = 10;
   readonly filters = inject(FormBuilder).nonNullable.group({ q: '', active: '' });
   readonly result = signal<UserPage | null>(null);
   readonly busy = signal(false);
@@ -83,7 +88,7 @@ export class UsersPage {
             this.error.set('');
             this.result.set(null);
             this.pendingUser.set(null);
-            let params = new HttpParams().set('page', query.page).set('size', 12);
+            let params = new HttpParams().set('page', query.page).set('size', this.pageSize);
             if (query.q) params = params.set('q', query.q);
             if (query.active) params = params.set('active', query.active);
             return this.http.get<UserPage>('/api/v1/admin/users', { params }).pipe(

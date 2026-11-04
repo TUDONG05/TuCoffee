@@ -1,8 +1,13 @@
 <a class="skip-link" href="#main">Đến nội dung chính</a>
+@if (!isAdminArea()) {
 <header class="site-header">
   <a class="brand" routerLink="/" aria-label="Tu’s Coffee — trang chủ">
     <img src="/logo.png" alt="Tu’s Coffee" width="80" height="80" fetchpriority="high" />
   </a>
+  <nav class="main-nav" aria-label="Điều hướng chính">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Trang chủ</a>
+    <a routerLink="/menu" routerLinkActive="active">Thực đơn</a>
+  </nav>
   <nav class="account-nav" aria-label="Tài khoản">
     @if (auth.user(); as user) {
       <button
@@ -41,7 +46,7 @@
         <ul nz-menu class="account-dropdown" aria-label="Tài khoản">
           <li nz-menu-item><a routerLink="/profile">Tài khoản</a></li>
           @if (auth.isAdmin()) {
-            <li nz-menu-item><a routerLink="/admin/users">Quản trị</a></li>
+            <li nz-menu-item><a routerLink="/admin">Quản trị</a></li>
           }
           <li nz-menu-divider></li>
           <li nz-menu-item [nzDisabled]="loggingOut()">
@@ -86,10 +91,12 @@
     }
   </nav>
 </header>
+}
 @if (auth.notice()) {
   <nz-alert class="session-notice" nzType="info" [nzMessage]="auth.notice()" role="status" />
 }
-<main id="main" tabindex="-1"><router-outlet /></main>
+<main id="main" tabindex="-1" [class.admin-main]="isAdminArea()"><router-outlet /></main>
+@if (!isAdminArea()) {
 <footer class="site-footer">
   <div class="footer-main">
     <div class="footer-brand">
@@ -101,6 +108,7 @@
     <nav class="footer-links" aria-labelledby="footer-explore">
       <h2 id="footer-explore">Khám phá</h2>
       <a routerLink="/">Trang chủ</a>
+      <a routerLink="/menu">Thực đơn</a>
       <a href="#main">Về đầu trang</a>
     </nav>
     <nav class="footer-links" aria-labelledby="footer-account">
@@ -125,6 +133,7 @@
     <span>Hương vị Việt, trong từng tách cà phê.</span>
   </div>
 </footer>
+}
 
 <nz-modal
   [nzVisible]="authMode() !== null"

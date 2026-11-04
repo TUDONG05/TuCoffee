@@ -46,5 +46,7 @@ describe('identity route guards', () => {
     ])
       expect(safeReturnUrl(value)).toBe('/profile');
     expect(safeReturnUrl('/admin/users')).toBe('/admin/users');
+    for (const value of ['/admin', '/admin/products', '/admin/categories'])
+      expect(safeReturnUrl(value)).toBe(value);
   });
 });

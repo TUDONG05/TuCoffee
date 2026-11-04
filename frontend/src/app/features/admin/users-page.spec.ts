@@ -19,7 +19,7 @@ const customer: User = {
 const pageOf = (page = 0): UserPage => ({
   items: [customer],
   page,
-  size: 12,
+  size: 10,
   totalItems: 25,
   totalPages: 3,
 });
@@ -60,6 +60,26 @@ describe('UsersPage request coordination', () => {
   const read = () =>
     http.expectOne((request) => request.url === '/api/v1/admin/users' && request.method === 'GET');
   const change = () => http.expectOne(`/api/v1/admin/users/${customer.id}/active`);
+
+  it('requests ten accounts per page, including filtered and paginated reads', () => {
+    const initial = read();
+    expect(initial.request.params.get('size')).toBe('10');
+    initial.flush(pageOf());
+    component.filters.patchValue({ q: 'customer', active: 'false' }, { emitEvent: false });
+    component.load();
+    const filtered = read();
+    expect(filtered.request.params.get('size')).toBe('10');
+    expect(filtered.request.params.get('q')).toBe('customer');
+    expect(filtered.request.params.get('active')).toBe('false');
+    filtered.flush(pageOf());
+    component.load(1);
+    const next = read();
+    expect(next.request.params.get('size')).toBe('10');
+    expect(next.request.params.get('page')).toBe('1');
+    expect(next.request.params.get('q')).toBe('customer');
+    expect(next.request.params.get('active')).toBe('false');
+    next.flush(pageOf(1));
+  });
 
   it('cancels the previous read and keeps the replacement request loading', () => {
     const first = read();
