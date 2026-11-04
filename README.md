@@ -202,3 +202,7 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 ## Cloudflare Turnstile
 
 Đã tích hợp xác minh chống bot cho email login/register; mặc định tắt khi chưa cấu hình. Xem [hướng dẫn cấu hình và kiểm chứng](docs/api/turnstile.md). Bật TURNSTILE_ENABLED, điền Site Key/Secret Key và hostnames trong `.env`, rồi restart backend.
+
+## Thiết kế database toàn dự án
+
+Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). V4–V7 tạo schema catalog, orders/payments/POS, reviews/reset và knowledge RAG. Có schema chưa đồng nghĩa chức năng API/UI đã triển khai; dữ liệu 18 sản phẩm tham khảo chưa được nhập tự động.
