@@ -104,12 +104,14 @@ test('admin can search, lock and unlock an isolated test customer', async ({ pag
   await expect(page).toHaveURL(/\/profile$/);
   await page.getByRole('button', { name: 'Mở menu tài khoản', exact: true }).click();
   await page.getByRole('link', { name: 'Quản trị', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await page.locator('.admin-sidebar').getByRole('link', { name: 'Quản lý tài khoản', exact: true }).click();
   await page.getByLabel('Tên hoặc email').fill(email);
   await page.getByRole('button', { name: 'Tìm kiếm' }).click();
   await expect(page.getByText('1 tài khoản', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: `Khóa ${email}`, exact: true }).click();
   await page.getByRole('button', { name: 'Xác nhận', exact: true }).click();
-  const customer = page.getByRole('listitem').filter({ hasText: email });
+  const customer = page.getByRole('row').filter({ hasText: email });
   await expect(customer).toContainText('Đã khóa');
   await page.getByRole('button', { name: `Mở khóa ${email}`, exact: true }).click();
   await page.getByRole('button', { name: 'Xác nhận', exact: true }).click();

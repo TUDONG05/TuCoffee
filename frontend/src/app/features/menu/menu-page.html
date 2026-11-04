@@ -1,0 +1,100 @@
+<section class="menu-page" aria-labelledby="menu-title">
+  <header class="menu-heading">
+    <div>
+      <h1 id="menu-title">Thực đơn</h1>
+      <p>Cà phê quen, hương vị bạn thích.</p>
+    </div>
+    <span class="menu-count" aria-live="polite">{{ list.result().totalItems }} sản phẩm</span>
+  </header>
+  <form class="catalog-filters" [formGroup]="list.filters" (ngSubmit)="list.load(0)">
+    <div>
+      <label for="menu-search">Tìm món</label
+      ><input
+        nz-input
+        nzSize="large"
+        id="menu-search"
+        type="search"
+        formControlName="q"
+        maxlength="100"
+        placeholder="Tên món hoặc hương vị…"
+      />
+    </div>
+    <div>
+      <label for="menu-category">Danh mục</label
+      ><nz-select nzId="menu-category" nzSize="large" formControlName="categoryId"
+        ><nz-option [nzValue]="null" nzLabel="Tất cả danh mục" />
+        @for (category of categories(); track category.id) {
+          <nz-option [nzValue]="category.id" [nzLabel]="category.name" />
+        }
+      </nz-select>
+    </div>
+    <div>
+      <label for="menu-sort">Sắp xếp</label
+      ><nz-select nzId="menu-sort" nzSize="large" formControlName="sort"
+        ><nz-option nzValue="id" nzLabel="Mặc định" /><nz-option
+          nzValue="name"
+          nzLabel="Tên A–Z" /><nz-option nzValue="priceAsc" nzLabel="Giá tăng dần" /><nz-option
+          nzValue="priceDesc"
+          nzLabel="Giá giảm dần"
+      /></nz-select>
+    </div>
+    <button nz-button nzType="primary" nzSize="large" type="submit" [nzLoading]="list.busy()">
+      Tìm kiếm
+    </button>
+  </form>
+  @if (categoryError()) {
+    <div class="category-warning">
+      <span>Chưa tải được danh mục.</span
+      ><button nz-button nzType="link" type="button" (click)="loadCategories()">
+        Thử lại danh mục
+      </button>
+    </div>
+  }
+  @if (list.error()) {
+    <div class="feedback">
+      <nz-alert nzType="error" [nzMessage]="list.error()" role="alert" /><button
+        nz-button
+        type="button"
+        (click)="list.load()"
+      >
+        Thử lại thực đơn
+      </button>
+    </div>
+  }
+  @if (list.busy()) {
+    <p class="loading" role="status">Đang tải thực đơn…</p>
+  }
+  <div [attr.aria-busy]="list.busy()">
+    @if (!list.busy() && !list.error() && list.result().items.length === 0) {
+      <div class="empty">
+        <h2>Chưa tìm thấy món phù hợp</h2>
+        <p>Thử tên món khác hoặc xem lại toàn bộ thực đơn.</p>
+        <button nz-button type="button" (click)="list.clear()">Xóa bộ lọc</button>
+      </div>
+    }
+    <div class="product-grid">
+      @for (product of list.result().items; track product.id) {
+        <a class="product-card" [routerLink]="['/products', product.id]"
+          ><app-product-image [src]="product.imageUrl" [alt]="product.name" />
+          <div class="product-info">
+            <span class="category-name">{{ product.category.name }}</span>
+            <h2>{{ product.name }}</h2>
+            <div class="product-bottom">
+              <strong>{{ product.priceVnd | vnd }}</strong
+              ><span class="detail-link">Xem chi tiết</span>
+            </div>
+          </div></a
+        >
+      }
+    </div>
+  </div>
+  @if (list.result().totalItems > 12) {
+    <nz-pagination
+      [nzPageIndex]="list.page() + 1"
+      [nzPageSize]="12"
+      [nzTotal]="list.result().totalItems"
+      [nzDisabled]="list.busy()"
+      (nzPageIndexChange)="list.load($event - 1)"
+    />
+  }
+</section>

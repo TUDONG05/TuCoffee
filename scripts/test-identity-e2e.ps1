@@ -66,11 +66,12 @@ try {
   $env:E2E_ADMIN_PASSWORD = $env:BOOTSTRAP_ADMIN_PASSWORD
   $env:E2E_API_TARGET = 'http://127.0.0.1:8081'
   $env:DEBUG = 'false'
-  & java -jar $taskJar --spring.profiles.active=bootstrap --spring.main.web-application-type=none --bootstrap.admin.name=E2EAdmin --bootstrap.admin.email=admin-e2e@example.test --debug=false
+  & java -jar $taskJar --spring.config.import= --spring.profiles.active=bootstrap --spring.main.web-application-type=none --bootstrap.admin.name=E2EAdmin --bootstrap.admin.email=admin-e2e@example.test --debug=false
   if ($LASTEXITCODE -ne 0) {
     throw 'Bootstrap ADMIN E2E that bai.'
   }
-  $taskBackend = Start-Process java -ArgumentList @('-jar', $taskJar, '--debug=false') -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $taskTemp 'identity-e2e-backend.log') -RedirectStandardError (Join-Path $taskTemp 'identity-e2e-backend.err.log')
+  $taskUploads = Join-Path $taskTemp ('e2e-catalog-assets-' + $taskId)
+  $taskBackend = Start-Process java -ArgumentList @('-jar', $taskJar, '--spring.config.import=', '--debug=false', '--catalog.seed.enabled=true', "--catalog.upload-dir=$taskUploads") -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $taskTemp 'identity-e2e-backend.log') -RedirectStandardError (Join-Path $taskTemp 'identity-e2e-backend.err.log')
   $taskReady = $false
   for ($taskAttempt = 0; $taskAttempt -lt 60; $taskAttempt++) {
     if ($taskBackend.HasExited) {

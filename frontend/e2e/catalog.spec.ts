@@ -1,0 +1,64 @@
+import { expect, test } from '@playwright/test';
+
+test('public catalog searches and opens persisted products', async ({ page }) => {
+  await expect.poll(async () => {
+    const response = await page.request.get('/api/v1/products?size=10');
+    return response.ok() ? (await response.json()).totalItems : 0;
+  }, { timeout: 20_000 }).toBeGreaterThan(0);
+  await page.goto('/menu');
+  const first = page.locator('.product-card').first();
+  await expect(first).toBeVisible();
+  const name = await first.locator('h2').innerText();
+  await page.getByLabel('Tìm món', { exact: true }).fill(name);
+  await page.getByRole('button', { name: 'Tìm kiếm', exact: true }).click();
+  await expect(page.locator('.product-card').first().locator('h2')).toHaveText(name);
+  await page.locator('.product-card').first().click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  const image = page.locator('.detail-grid img');
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+});
+
+test('isolated admin can create and edit catalog records reflected in the storefront', async ({ page }) => {
+  const email = process.env['E2E_ADMIN_EMAIL'];
+  const password = process.env['E2E_ADMIN_PASSWORD'];
+  test.skip(!process.env['E2E_API_TARGET'] || !email || !password, 'Requires an isolated API target and explicitly bootstrapped test admin.');
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const categoryName = `Danh mục E2E ${id}`;
+  const productName = `Sản phẩm E2E ${id}`;
+  await page.goto('/login?returnUrl=%2Fadmin%2Fcategories');
+  await page.getByRole('textbox', { name: 'Email', exact: true }).fill(email!);
+  await page.getByLabel(/^Mật khẩu\s*\*?$/).fill(password!);
+  await page.locator('main').getByRole('button', { name: 'Đăng nhập', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/categories$/);
+  await page.getByRole('button', { name: 'Thêm danh mục', exact: true }).click();
+  const dialog = page.locator('.ant-modal:visible');
+  await dialog.getByLabel('Tên danh mục', { exact: true }).fill(categoryName);
+  await dialog.getByLabel('Đường dẫn danh mục', { exact: true }).fill(`e2e-${id}`);
+  await dialog.getByRole('button', { name: 'Lưu danh mục', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.locator('.admin-sidebar').getByRole('link', { name: 'Quản lý sản phẩm', exact: true }).click();
+  await page.getByRole('button', { name: 'Thêm sản phẩm', exact: true }).click();
+  await dialog.getByLabel('Tên sản phẩm', { exact: true }).fill(productName);
+  await dialog.getByLabel('Danh mục sản phẩm', { exact: true }).click();
+  await page.locator('.ant-select-dropdown:visible .ant-select-item-option-content').getByText(categoryName, { exact: true }).click();
+  await dialog.getByLabel('Giá bán (VND)', { exact: true }).fill('42000');
+  await dialog.getByLabel('Mô tả', { exact: true }).fill('Sản phẩm kiểm thử trên schema riêng.');
+  await dialog.getByRole('button', { name: 'Lưu sản phẩm', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await page.getByLabel('Tên hoặc mô tả', { exact: true }).fill(productName);
+  await page.getByRole('button', { name: 'Tìm kiếm', exact: true }).click();
+  const product = page.getByRole('row').filter({ hasText: productName });
+  await expect(product).toHaveCount(1);
+  await expect(product).toContainText('42.000');
+  await product.getByRole('button', { name: `Sửa ${productName}`, exact: true }).click();
+  await dialog.getByLabel('Giá bán (VND)', { exact: true }).fill('45000');
+  await dialog.getByRole('button', { name: 'Lưu sản phẩm', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(product).toContainText('45.000');
+  await page.goto('/menu');
+  await page.getByLabel('Tìm món', { exact: true }).fill(productName);
+  await page.getByRole('button', { name: 'Tìm kiếm', exact: true }).click();
+  await expect(page.locator('.product-card')).toHaveCount(1);
+  await expect(page.locator('.product-card')).toContainText('45.000');
+});

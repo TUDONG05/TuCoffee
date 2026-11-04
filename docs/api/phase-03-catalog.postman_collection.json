@@ -1,0 +1,394 @@
+{
+  "info": {
+    "name": "TuCoffee — Catalog giai đoạn 3",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Theo OpenAPI. Nhóm ADMIN cần accessToken, request ghi cần CSRF cookie+header. Chỉ chạy tạo/sửa trên môi trường thử; upload chọn ảnh trong Postman. Dùng source data18món ở bước import local riêng."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": "1"
+    },
+    {
+      "key": "productId",
+      "value": "1"
+    },
+    {
+      "key": "categoryVersion",
+      "value": "0"
+    },
+    {
+      "key": "productVersion",
+      "value": "0"
+    }
+  ],
+  "item": [
+    {
+      "name": "Danh mục đang hoạt động",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/categories",
+        "header": []
+      }
+    },
+    {
+      "name": "Thực đơn công khai",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/products",
+        "header": []
+      }
+    },
+    {
+      "name": "Chi tiết món đang bán",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+        "header": []
+      }
+    },
+    {
+      "name": "ADMIN danh mục",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/admin/categories",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ADMIN sản phẩm",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/admin/products",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Thêm Category",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/admin/categories",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Danh mục thử\",\n  \"slug\": \"danh-muc-thu\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sửa Category theo version",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Danh mục thử\",\n  \"slug\": \"danh-muc-thu\",\n  \"version\": {{categoryVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bật/tắt Category",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}/active",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"active\": false,\n  \"version\": {{categoryVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Thêm Product",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/admin/products",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"categoryId\": {{categoryId}},\n  \"name\": \"Món thử\",\n  \"description\": \"Dữ liệu kiểm thử\",\n  \"priceVnd\": 45000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sửa Product theo version",
+      "request": {
+        "method": "PUT",
+        "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"categoryId\": {{categoryId}},\n  \"name\": \"Món thử\",\n  \"description\": \"Dữ liệu kiểm thử\",\n  \"priceVnd\": 45000,\n  \"version\": {{productVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bật/tắt Product",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/active",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"active\": false,\n  \"version\": {{productVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload JPEG/PNG/WebP tối đa5MB",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/admin/products/{{productId}}/image?version={{productVersion}}",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": null
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.sendRequest(pm.variables.get('baseUrl') + '/api/v1/auth/csrf', (error, response) => {",
+              "  if (error || response.code !== 200) throw new Error('Không lấy được CSRF');",
+              "  pm.variables.set('csrfToken', response.json().token);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

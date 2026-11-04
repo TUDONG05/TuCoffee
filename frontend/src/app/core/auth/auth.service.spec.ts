@@ -127,6 +127,27 @@ describe('AuthService session coordination', () => {
     expect(auth.token()).toBeNull();
   });
 
+  it('keeps logout failure available across layouts and clears it after a successful retry', async () => {
+    const failed = auth.logout().catch(() => 'failed');
+    await tick();
+    http.expectOne('/api/v1/auth/csrf').flush({});
+    await tick();
+    http.expectOne('/api/v1/auth/logout').flush({}, { status: 503, statusText: 'Unavailable' });
+    expect(await failed).toBe('failed');
+    expect(auth.logoutFailed()).toBe(true);
+    expect(auth.user()).toBeNull();
+
+    const retry = auth.logout();
+    await tick();
+    http.expectOne('/api/v1/auth/csrf').flush({});
+    await tick();
+    http.expectOne('/api/v1/auth/logout').flush(null);
+    await tick();
+    http.expectOne('/api/v1/auth/csrf').flush({});
+    await retry;
+    expect(auth.logoutFailed()).toBe(false);
+  });
+
   it('registers without silently authenticating the new account', async () => {
     const registered = auth.register({
       name: 'Nguyễn An',

@@ -21,6 +21,8 @@ export class AuthService implements OnDestroy {
   readonly isAdmin = computed(() => this.user()?.role === 'ADMIN');
   readonly ready = signal(false);
   readonly notice = signal('');
+  private readonly unconfirmedLogout = signal(false);
+  readonly logoutFailed = this.unconfirmedLogout.asReadonly();
 
   constructor() {
     if (this.channel)
@@ -163,7 +165,9 @@ export class AuthService implements OnDestroy {
         await this.csrf();
       });
       this.notice.set('Bạn đã đăng xuất. Hẹn gặp lại!');
+      this.unconfirmedLogout.set(false);
     } catch (error) {
+      this.unconfirmedLogout.set(true);
       this.notice.set(
         'Đã xóa phiên trên trang này, nhưng chưa xác nhận đăng xuất với máy chủ. Vui lòng thử đăng xuất lại khi có kết nối.',
       );

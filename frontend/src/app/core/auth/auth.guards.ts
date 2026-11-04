@@ -3,7 +3,8 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 export function safeReturnUrl(value: string | null): string {
-  return value === '/profile' || value === '/admin/users' ? value : '/profile';
+  return value && ['/profile', '/admin', '/admin/users', '/admin/products', '/admin/categories'].includes(value)
+    ? value : '/profile';
 }
 
 export const authGuard: CanActivateFn = async (_route, state) => {
