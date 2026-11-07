@@ -82,7 +82,7 @@ public class SecurityConfig {
                                                 "/api/v1/orders/vnpay-return").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
-                                        .requestMatchers("/api/v1/users/**", "/api/v1/orders/**")
+                                        .requestMatchers("/api/v1/users/**", "/api/v1/orders", "/api/v1/orders/**")
                                         .authenticated()
                                         .requestMatchers(
                                                 "/api/v1/auth/csrf",

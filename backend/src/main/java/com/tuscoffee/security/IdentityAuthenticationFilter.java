@@ -32,7 +32,9 @@ public class IdentityAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return !(path.startsWith("/api/v1/users/") || path.startsWith("/api/v1/admin/"));
+        return !(path.startsWith("/api/v1/users")
+                || path.startsWith("/api/v1/admin")
+                || path.startsWith("/api/v1/orders"));
     }
 
     @Override
