@@ -116,7 +116,11 @@ export class CartService {
 
   private saveToStorage(items: CartItem[]): void {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      if (items.length === 0) {
+        localStorage.removeItem(CART_STORAGE_KEY);
+      } else {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      }
     } catch {
       // ignore storage quota errors
     }
