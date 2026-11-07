@@ -53,7 +53,8 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse createOnlineOrder(long buyerId, String idempotencyKey, CreateOrderRequest req, String rawPayload) {
+    public OrderResponse createOnlineOrder(long buyerId, String idempotencyKey, CreateOrderRequest req,
+            String rawPayload) {
         User buyer = userRepo.findById(buyerId)
                 .orElseThrow(() -> new ApiException(401, "UNAUTHORIZED", "Tài khoản không hợp lệ."));
         if (!buyer.isActive()) {
@@ -64,13 +65,15 @@ public class OrderService {
         }
         String requestHash = hashSha256(rawPayload != null ? rawPayload : req.toString());
 
-        Optional<OrderRequest> existingRequest = orderRequestRepo.findByCreatorIdAndIdempotencyKey(buyer.getId(), idempotencyKey);
+        Optional<OrderRequest> existingRequest = orderRequestRepo.findByCreatorIdAndIdempotencyKey(buyer.getId(),
+                idempotencyKey);
         if (existingRequest.isPresent()) {
             OrderRequest ordReq = existingRequest.get();
             if (ordReq.getRequestHash().equals(requestHash)) {
                 return mapToOrderResponse(ordReq.getOrder());
             } else {
-                throw new ApiException(409, "IDEMPOTENCY_CONFLICT", "Idempotency-Key đã được sử dụng với nội dung khác.");
+                throw new ApiException(409, "IDEMPOTENCY_CONFLICT",
+                        "Idempotency-Key đã được sử dụng với nội dung khác.");
             }
         }
 
@@ -83,7 +86,8 @@ public class OrderService {
 
         String customerName = req.customerName() != null ? req.customerName().trim() : "";
         if (customerName.isEmpty() || customerName.length() > 100) {
-            throw new ApiException(400, "INVALID_CUSTOMER_NAME", "Họ tên người nhận không được để trống (tối đa 100 ký tự).");
+            throw new ApiException(400, "INVALID_CUSTOMER_NAME",
+                    "Họ tên người nhận không được để trống (tối đa 100 ký tự).");
         }
         String customerPhone = req.customerPhone() != null ? req.customerPhone().trim() : null;
         if (customerPhone != null && (customerPhone.isEmpty() || customerPhone.length() > 20)) {
@@ -99,7 +103,8 @@ public class OrderService {
         }
         String paymentMethod = req.paymentMethod();
         if (!"CASH".equals(paymentMethod) && !"QR_TRANSFER".equals(paymentMethod) && !"VNPAY".equals(paymentMethod)) {
-            throw new ApiException(400, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán phải là CASH, QR_TRANSFER hoặc VNPAY.");
+            throw new ApiException(400, "INVALID_PAYMENT_METHOD",
+                    "Phương thức thanh toán phải là CASH, QR_TRANSFER hoặc VNPAY.");
         }
 
         Map<Long, Integer> quantityByProduct = new LinkedHashMap<>();
@@ -141,15 +146,18 @@ public class OrderService {
 
         for (Product product : products) {
             if (!product.isActive() || product.getCategory() == null || !product.getCategory().isActive()) {
-                throw new ApiException(400, "PRODUCT_UNAVAILABLE", "Sản phẩm '" + product.getName() + "' hiện đã ngừng bán.");
+                throw new ApiException(400, "PRODUCT_UNAVAILABLE",
+                        "Sản phẩm '" + product.getName() + "' hiện đã ngừng bán.");
             }
             int qty = quantityByProduct.get(product.getId());
             if (qty < 1 || qty > 99) {
-                throw new ApiException(400, "INVALID_QUANTITY", "Tổng số lượng cho món '" + product.getName() + "' phải từ 1 đến 99.");
+                throw new ApiException(400, "INVALID_QUANTITY",
+                        "Tổng số lượng cho món '" + product.getName() + "' phải từ 1 đến 99.");
             }
             long expectedPrice = expectedPriceByProduct.get(product.getId());
             if (expectedPrice != product.getPriceVnd()) {
-                throw new ApiException(409, "PRICE_CHANGED", "Giá sản phẩm '" + product.getName() + "' đã thay đổi. Vui lòng tải lại giỏ hàng.");
+                throw new ApiException(409, "PRICE_CHANGED",
+                        "Giá sản phẩm '" + product.getName() + "' đã thay đổi. Vui lòng tải lại giỏ hàng.");
             }
             long itemSubtotal = product.getPriceVnd() * qty;
             totalVnd += itemSubtotal;
@@ -157,7 +165,8 @@ public class OrderService {
         }
 
         if (totalVnd < 0 || totalVnd > 100_000_000L) {
-            throw new ApiException(400, "INVALID_TOTAL_AMOUNT", "Tổng tiền đơn hàng không hợp lệ (tối đa 100.000.000 đ).");
+            throw new ApiException(400, "INVALID_TOTAL_AMOUNT",
+                    "Tổng tiền đơn hàng không hợp lệ (tối đa 100.000.000 đ).");
         }
 
         order = new Order(
@@ -174,7 +183,8 @@ public class OrderService {
         order = orderRepo.save(order);
 
         for (OrderItem oi : orderItemsToPersist) {
-            orderItemRepo.save(new OrderItem(order, oi.getProduct(), oi.getProductName(), oi.getUnitPriceVnd(), oi.getQuantity()));
+            orderItemRepo.save(
+                    new OrderItem(order, oi.getProduct(), oi.getProductName(), oi.getUnitPriceVnd(), oi.getQuantity()));
         }
 
         Payment payment = new Payment(
@@ -211,7 +221,8 @@ public class OrderService {
         Pageable pageable = PageRequest.of(boundedPage, boundedSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Order> orderPage = orderRepo.findByBuyerIdOrderByCreatedAtDesc(buyerId, pageable);
         List<OrderResponse> items = batchMapOrderResponses(orderPage.getContent());
-        return new OrderPageResponse(items, orderPage.getNumber(), orderPage.getSize(), orderPage.getTotalElements(), orderPage.getTotalPages());
+        return new OrderPageResponse(items, orderPage.getNumber(), orderPage.getSize(), orderPage.getTotalElements(),
+                orderPage.getTotalPages());
     }
 
     @Transactional(readOnly = true)
@@ -235,7 +246,8 @@ public class OrderService {
                 .orElseThrow(() -> new ApiException(404, "PAYMENT_NOT_FOUND", "Không tìm thấy thông tin thanh toán."));
 
         String qrUrl = null;
-        if ("QR_TRANSFER".equals(payment.getMethod()) && payment.getBankCode() != null && payment.getBankAccount() != null) {
+        if ("QR_TRANSFER".equals(payment.getMethod()) && payment.getBankCode() != null
+                && payment.getBankAccount() != null) {
             String accNameEncoded = payment.getBankAccountName() != null
                     ? URLEncoder.encode(payment.getBankAccountName(), StandardCharsets.UTF_8)
                     : "";
@@ -269,16 +281,19 @@ public class OrderService {
             throw new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng.");
         }
         if (req.version() != null && req.version() != order.getVersion()) {
-            throw new ApiException(409, "STALE_ORDER_VERSION", "Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại trang.");
+            throw new ApiException(409, "STALE_ORDER_VERSION",
+                    "Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại trang.");
         }
         Payment payment = paymentRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new ApiException(404, "PAYMENT_NOT_FOUND", "Không tìm thấy thanh toán."));
 
         if ("PAID".equals(payment.getStatus())) {
-            throw new ApiException(409, "PAID_ORDER_CANNOT_BE_CANCELLED", "Đơn hàng đã thanh toán không thể hủy qua ứng dụng. Vui lòng liên hệ quán.");
+            throw new ApiException(409, "PAID_ORDER_CANNOT_BE_CANCELLED",
+                    "Đơn hàng đã thanh toán không thể hủy qua ứng dụng. Vui lòng liên hệ quán.");
         }
         if (!"PENDING".equals(order.getStatus())) {
-            throw new ApiException(409, "INVALID_ORDER_STATE", "Không thể hủy đơn hàng ở trạng thái '" + order.getStatus() + "'.");
+            throw new ApiException(409, "INVALID_ORDER_STATE",
+                    "Không thể hủy đơn hàng ở trạng thái '" + order.getStatus() + "'.");
         }
 
         order.markCancelled();
@@ -299,7 +314,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public OrderPageResponse adminSearchOrders(String status, String source, String paymentStatus, String q, int page, int size) {
+    public OrderPageResponse adminSearchOrders(String status, String source, String paymentStatus, String q, int page,
+            int size) {
         int boundedPage = Math.max(0, Math.min(page, 1_000_000));
         int boundedSize = Math.max(1, Math.min(size, 100));
         Pageable pageable = PageRequest.of(boundedPage, boundedSize);
@@ -318,7 +334,8 @@ public class OrderService {
 
         Page<Order> orderPage = orderRepo.searchAdmin(cleanStatus, cleanSource, cleanPayment, pattern, pageable);
         List<OrderResponse> items = batchMapOrderResponses(orderPage.getContent());
-        return new OrderPageResponse(items, orderPage.getNumber(), orderPage.getSize(), orderPage.getTotalElements(), orderPage.getTotalPages());
+        return new OrderPageResponse(items, orderPage.getNumber(), orderPage.getSize(), orderPage.getTotalElements(),
+                orderPage.getTotalPages());
     }
 
     @Transactional(readOnly = true)
@@ -359,23 +376,28 @@ public class OrderService {
 
         if ("CONFIRMED".equals(toStatus)) {
             if (!"PENDING".equals(fromStatus)) {
-                throw new ApiException(409, "INVALID_STATE_TRANSITION", "Chỉ có thể xác nhận đơn từ trạng thái PENDING.");
+                throw new ApiException(409, "INVALID_STATE_TRANSITION",
+                        "Chỉ có thể xác nhận đơn từ trạng thái PENDING.");
             }
             order.markConfirmed();
         } else if ("COMPLETED".equals(toStatus)) {
             if (!"CONFIRMED".equals(fromStatus)) {
-                throw new ApiException(409, "INVALID_STATE_TRANSITION", "Chỉ có thể hoàn tất đơn khi đã xác nhận (CONFIRMED).");
+                throw new ApiException(409, "INVALID_STATE_TRANSITION",
+                        "Chỉ có thể hoàn tất đơn khi đã xác nhận (CONFIRMED).");
             }
             if (!"PAID".equals(payment.getStatus())) {
-                throw new ApiException(409, "PAYMENT_REQUIRED", "Đơn hàng phải được thanh toán (PAID) trước khi hoàn tất.");
+                throw new ApiException(409, "PAYMENT_REQUIRED",
+                        "Đơn hàng phải được thanh toán (PAID) trước khi hoàn tất.");
             }
             order.markCompleted();
         } else if ("CANCELLED".equals(toStatus)) {
             if (!"PENDING".equals(fromStatus) && !"CONFIRMED".equals(fromStatus)) {
-                throw new ApiException(409, "INVALID_STATE_TRANSITION", "Không thể hủy đơn hàng ở trạng thái " + fromStatus);
+                throw new ApiException(409, "INVALID_STATE_TRANSITION",
+                        "Không thể hủy đơn hàng ở trạng thái " + fromStatus);
             }
             if ("PAID".equals(payment.getStatus())) {
-                throw new ApiException(409, "PAID_ORDER_CANNOT_BE_CANCELLED", "Đơn hàng đã thanh toán không thể hủy qua hệ thống.");
+                throw new ApiException(409, "PAID_ORDER_CANNOT_BE_CANCELLED",
+                        "Đơn hàng đã thanh toán không thể hủy qua hệ thống.");
             }
             order.markCancelled();
         } else {
@@ -435,13 +457,15 @@ public class OrderService {
         }
 
         if (req.amountVnd() == null || req.amountVnd() != order.getTotalVnd()) {
-            throw new ApiException(400, "INVALID_AMOUNT", "Số tiền xác nhận (" + req.amountVnd() + " đ) không khớp với số tiền đơn hàng (" + order.getTotalVnd() + " đ).");
+            throw new ApiException(400, "INVALID_AMOUNT", "Số tiền xác nhận (" + req.amountVnd()
+                    + " đ) không khớp với số tiền đơn hàng (" + order.getTotalVnd() + " đ).");
         }
 
         String ref = req.reference() != null ? req.reference().trim() : null;
         if ("QR_TRANSFER".equals(payment.getMethod())) {
             if (ref == null || ref.isEmpty()) {
-                throw new ApiException(400, "MISSING_REFERENCE", "Mã giao dịch ngân hàng (reference) là bắt buộc khi chuyển khoản.");
+                throw new ApiException(400, "MISSING_REFERENCE",
+                        "Mã giao dịch ngân hàng (reference) là bắt buộc khi chuyển khoản.");
             }
         } else {
             ref = null;
@@ -471,7 +495,8 @@ public class OrderService {
     }
 
     private List<OrderResponse> batchMapOrderResponses(List<Order> orders) {
-        if (orders.isEmpty()) return List.of();
+        if (orders.isEmpty())
+            return List.of();
         List<Long> orderIds = orders.stream().map(Order::getId).toList();
         Map<Long, List<OrderItem>> itemsByOrderId = orderItemRepo.findByOrderIdIn(orderIds)
                 .stream().collect(Collectors.groupingBy(oi -> oi.getOrder().getId()));
@@ -479,7 +504,8 @@ public class OrderService {
                 .stream().collect(Collectors.toMap(p -> p.getOrder().getId(), p -> p, (a, b) -> a));
 
         return orders.stream()
-                .map(o -> toOrderResponse(o, itemsByOrderId.getOrDefault(o.getId(), List.of()), paymentByOrderId.get(o.getId())))
+                .map(o -> toOrderResponse(o, itemsByOrderId.getOrDefault(o.getId(), List.of()),
+                        paymentByOrderId.get(o.getId())))
                 .toList();
     }
 
@@ -528,7 +554,8 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public VnPayPaymentUrlResponse getVnPayPaymentUrl(long orderId, long currentUserId, boolean isAdmin, String ipAddress) {
+    public VnPayPaymentUrlResponse getVnPayPaymentUrl(long orderId, long currentUserId, boolean isAdmin,
+            String ipAddress) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng."));
 
@@ -543,7 +570,8 @@ public class OrderService {
             throw new ApiException(400, "ALREADY_PAID", "Đơn hàng đã được thanh toán thành công.");
         }
         if ("CANCELLED".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
-            throw new ApiException(400, "INVALID_ORDER_STATUS", "Không thể thanh toán đơn hàng có trạng thái " + order.getStatus() + ".");
+            throw new ApiException(400, "INVALID_ORDER_STATUS",
+                    "Không thể thanh toán đơn hàng có trạng thái " + order.getStatus() + ".");
         }
 
         String url = vnPayService.createPaymentUrl(order, ipAddress);
@@ -603,7 +631,8 @@ public class OrderService {
                     order.getStatus(),
                     order.getVersion(),
                     transactionNo,
-                    "Xác nhận thanh toán VNPAY IPN thành công (Mã GD: " + transactionNo + ", Ngân hàng: " + bankCode + ").");
+                    "Xác nhận thanh toán VNPAY IPN thành công (Mã GD: " + transactionNo + ", Ngân hàng: " + bankCode
+                            + ").");
             orderEventRepo.save(event);
         } else {
             OrderEvent event = new OrderEvent(
@@ -659,7 +688,8 @@ public class OrderService {
             return new VnPayReturnResponse(true, "00", "Giao dịch thanh toán thành công qua VNPAY.", orderId, txnRef);
         }
 
-        return new VnPayReturnResponse(false, responseCode, "Giao dịch không thành công hoặc người dùng đã hủy (Mã lỗi: " + responseCode + ").", orderId, txnRef);
+        return new VnPayReturnResponse(false, responseCode,
+                "Giao dịch không thành công hoặc người dùng đã hủy (Mã lỗi: " + responseCode + ").", orderId, txnRef);
     }
 
     private String generatePublicCode() {

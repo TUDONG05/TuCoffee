@@ -7,7 +7,7 @@ export const AUTH_RETRIED = new HttpContextToken(() => false);
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   // Do not send credentials to absolute/third-party URLs or public/auth endpoints.
-  const protectedRoute = /^\/api\/v1\/(users|admin)(\/|\?|$)/.test(request.url);
+  const protectedRoute = /^\/api\/v1\/(users|admin|orders)(\/|\?|$)/.test(request.url);
   if (!protectedRoute) return next(request);
   const auth = inject(AuthService);
   const token = auth.token();
