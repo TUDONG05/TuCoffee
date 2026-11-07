@@ -64,7 +64,8 @@ public class SecurityConfig {
             throws Exception {
         http.sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(config -> config.spa().csrfTokenRepository(csrf))
+                .csrf(config -> config.spa().csrfTokenRepository(csrf)
+                        .ignoringRequestMatchers("/api/v1/sepay/webhook"))
                 .cors(cors -> cors.configurationSource(corsSource(settings)))
                 .requestCache(cache -> cache.disable())
                 .httpBasic(basic -> basic.disable())
@@ -80,6 +81,8 @@ public class SecurityConfig {
                                                 "/api/v1/catalog/images/**",
                                                 "/api/v1/orders/vnpay-ipn",
                                                 "/api/v1/orders/vnpay-return").permitAll()
+                                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                                "/api/v1/sepay/webhook").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
                                         .requestMatchers("/api/v1/users/**", "/api/v1/orders", "/api/v1/orders/**")

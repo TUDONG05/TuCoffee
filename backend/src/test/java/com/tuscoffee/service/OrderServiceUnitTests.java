@@ -42,7 +42,8 @@ class OrderServiceUnitTests {
 
         PaymentSettings settings = new PaymentSettings(
                 new PaymentSettings.BankSettings("VCB", "0123456789", "TU COFFEE"),
-                new PaymentSettings.VnPaySettings("DEMOV210", "DEMOHASHSECRET210", "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "http://localhost:4200/orders/vnpay-return")
+                new PaymentSettings.VnPaySettings("DEMOV210", "DEMOHASHSECRET210", "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "http://localhost:4200/orders/vnpay-return"),
+                new PaymentSettings.SePaySettings("")
         );
         VnPayService vnPayService = new VnPayService(settings);
 

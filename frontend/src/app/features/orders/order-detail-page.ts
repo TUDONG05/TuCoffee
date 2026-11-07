@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -66,13 +66,13 @@ import { HttpErrorResponse } from '@angular/common/http';
               <div class="qr-payment-card">
                 <div class="qr-card-header">
                   <h2>Thông tin thanh toán chuyển khoản</h2>
-                  <span class="qr-tag">VietQR 24/7</span>
+                  <span class="qr-tag">Tự động duyệt qua SePay</span>
                 </div>
                 <div class="qr-card-body">
                   @if (instructions()?.qrUrl; as qrUrl) {
                     <div class="qr-image-container">
                       <img [src]="qrUrl" alt="Mã VietQR chuyển khoản" class="qr-image" />
-                      <p class="qr-note">Quét mã bằng app ngân hàng bất kỳ</p>
+                      <p class="qr-note">Quét mã bằng app ngân hàng (số tiền & nội dung tự điền)</p>
                     </div>
                   }
                   <div class="bank-details">
@@ -100,33 +100,9 @@ import { HttpErrorResponse } from '@angular/common/http';
                     </div>
                   </div>
                 </div>
-                <p class="qr-instruction">
-                  ⚠️ Vui lòng ghi chính xác <strong>nội dung chuyển khoản</strong> để đơn hàng được nhân viên quán xác nhận nhanh nhất!
-                </p>
-              </div>
-            }
-
-            <!-- Payment VNPAY Card if VNPAY and UNPAID -->
-            @if (ord.payment?.method === 'VNPAY' && ord.payment?.status === 'UNPAID' && ord.status !== 'CANCELLED') {
-              <div class="qr-payment-card vnpay-payment-card">
-                <div class="qr-card-header">
-                  <h2>Cổng thanh toán trực tuyến VNPAY</h2>
-                  <span class="qr-tag vnpay-tag">VNPAY Gateway</span>
-                </div>
-                <div class="vnpay-body">
-                  <p class="vnpay-desc">
-                    Đơn hàng chưa được thanh toán. Bạn có thể thanh toán ngay qua cổng VNPAY (chấp nhận ATM nội địa, thẻ quốc tế Visa/MasterCard hoặc quét mã QR qua ứng dụng ngân hàng/ví VNPAY).
-                  </p>
-                  <button
-                    nz-button
-                    nzType="primary"
-                    nzSize="large"
-                    class="vnpay-btn"
-                    [nzLoading]="redirectingVnPay()"
-                    (click)="payWithVnPay(ord.id)"
-                  >
-                    💳 Thanh toán ngay qua VNPAY ({{ ord.totalVnd | vnd }})
-                  </button>
+                <div class="sepay-status-notice">
+                  <span class="pulse-dot" aria-hidden="true"></span>
+                  <span>Đang đợi chuyển khoản... Hệ thống SePay sẽ tự động xác nhận đơn ngay khi bạn chuyển tiền!</span>
                 </div>
               </div>
             }
@@ -408,6 +384,39 @@ import { HttpErrorResponse } from '@angular/common/http';
       font-size: 0.85rem;
       color: #666;
     }
+    .sepay-status-notice {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      margin-top: 1.25rem;
+      font-size: 0.9rem;
+      color: #0050b3;
+      font-weight: 500;
+    }
+    .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #1890ff;
+      box-shadow: 0 0 0 rgba(24, 144, 255, 0.4);
+      animation: pulse 1.5s infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 8px rgba(24, 144, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+      }
+    }
     .info-section {
       background: #fff;
       border: 1px solid #eee;
@@ -517,7 +526,7 @@ import { HttpErrorResponse } from '@angular/common/http';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OrderDetailPage implements OnInit {
+export class OrderDetailPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly orderService = inject(OrderService);
 
@@ -526,12 +535,16 @@ export class OrderDetailPage implements OnInit {
   readonly order = signal<OrderResponse | null>(null);
   readonly instructions = signal<PaymentInstructionsResponse | null>(null);
   readonly cancelling = signal(false);
-  readonly redirectingVnPay = signal(false);
   readonly confirmModalVisible = signal(false);
   readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
+  private pollTimer?: any;
 
   ngOnInit(): void {
     this.loadOrder();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPaymentPolling();
   }
 
   loadOrder(): void {
@@ -551,6 +564,9 @@ export class OrderDetailPage implements OnInit {
         this.loading.set(false);
         if (ord.payment?.method === 'QR_TRANSFER') {
           this.loadInstructions(id);
+          if (ord.payment?.status === 'UNPAID' && ord.status !== 'CANCELLED') {
+            this.startPaymentPolling(id);
+          }
         }
       },
       error: () => {
@@ -558,6 +574,32 @@ export class OrderDetailPage implements OnInit {
         this.loading.set(false);
       },
     });
+  }
+
+  private startPaymentPolling(orderId: number): void {
+    this.stopPaymentPolling();
+    this.pollTimer = setInterval(() => {
+      this.orderService.getOrder(orderId).subscribe({
+        next: (updated) => {
+          if (updated.payment?.status === 'PAID') {
+            this.order.set(updated);
+            this.stopPaymentPolling();
+            this.actionFeedback.set({
+              type: 'success',
+              message: '🎉 Thanh toán thành công! Hệ thống SePay đã tự động xác nhận chuyển khoản cho đơn hàng #' + updated.publicCode,
+            });
+          }
+        },
+        error: () => {},
+      });
+    }, 3000);
+  }
+
+  private stopPaymentPolling(): void {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = undefined;
+    }
   }
 
   private loadInstructions(id: number): void {
@@ -604,25 +646,8 @@ export class OrderDetailPage implements OnInit {
     navigator.clipboard.writeText(text);
   }
 
-  payWithVnPay(orderId: number): void {
-    this.redirectingVnPay.set(true);
-    this.actionFeedback.set(null);
-    this.orderService.getVnPayUrl(orderId).subscribe({
-      next: (res) => {
-        window.location.href = res.paymentUrl;
-      },
-      error: (err: HttpErrorResponse) => {
-        this.redirectingVnPay.set(false);
-        this.actionFeedback.set({
-          type: 'error',
-          message: err.error?.detail || 'Không thể tạo liên kết thanh toán VNPAY lúc này.',
-        });
-      },
-    });
-  }
-
   getPaymentMethodLabel(method?: string | null): string {
-    if (method === 'QR_TRANSFER') return 'Chuyển khoản VietQR';
+    if (method === 'QR_TRANSFER') return 'Chuyển khoản VietQR (SePay)';
     if (method === 'VNPAY') return 'Cổng thanh toán VNPAY';
     return 'Tiền mặt khi nhận';
   }

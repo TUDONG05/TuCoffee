@@ -116,17 +116,9 @@ import { HttpErrorResponse } from '@angular/common/http';
               <nz-radio-group formControlName="paymentMethod" class="payment-options">
                 <label nz-radio nzValue="QR_TRANSFER" class="payment-radio">
                   <div class="payment-info">
-                    <strong>Chuyển khoản VietQR (Khuyên dùng)</strong>
+                    <strong>Chuyển khoản VietQR (Tự động xác nhận qua SePay)</strong>
                     <span class="payment-desc">
-                      Quét mã QR qua ứng dụng ngân hàng, xác nhận nhanh chóng.
-                    </span>
-                  </div>
-                </label>
-                <label nz-radio nzValue="VNPAY" class="payment-radio">
-                  <div class="payment-info">
-                    <strong>Cổng thanh toán VNPAY</strong>
-                    <span class="payment-desc">
-                      Thanh toán qua VNPAY (ATM nội địa, Visa/MasterCard, VNPAY-QR).
+                      Quét mã VietQR bằng app ngân hàng bất kỳ, SePay tự động khớp giao dịch trong vài giây.
                     </span>
                   </div>
                 </label>
@@ -405,20 +397,8 @@ export class CheckoutPage {
     this.orderService.createOrder(req, this.idempotencyKey).subscribe({
       next: (order) => {
         this.cart.clear();
-        if (order.payment?.method === 'VNPAY') {
-          this.orderService.getVnPayUrl(order.id).subscribe({
-            next: (vnpRes) => {
-              window.location.href = vnpRes.paymentUrl;
-            },
-            error: () => {
-              this.submitting.set(false);
-              this.router.navigate(['/orders', order.id]);
-            },
-          });
-        } else {
-          this.submitting.set(false);
-          this.router.navigate(['/orders', order.id]);
-        }
+        this.submitting.set(false);
+        this.router.navigate(['/orders', order.id]);
       },
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);
