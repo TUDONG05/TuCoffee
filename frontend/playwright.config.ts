@@ -17,7 +17,8 @@ export default defineConfig({
       ? `npm exec ng -- serve --host localhost --port ${port} --proxy-config src/proxy.e2e.cjs`
       : 'npm run start',
     url: baseURL,
-    reuseExistingServer: !process.env['CI'] && !isolated,
+    reuseExistingServer:
+      process.env['E2E_MANAGED_FRONTEND'] === 'true' || (!process.env['CI'] && !isolated),
     timeout: 120_000,
   },
 });

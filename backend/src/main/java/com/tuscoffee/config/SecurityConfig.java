@@ -28,7 +28,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
-@EnableConfigurationProperties({AuthSettings.class, com.tuscoffee.security.GoogleSettings.class})
+@EnableConfigurationProperties({AuthSettings.class, com.tuscoffee.security.GoogleSettings.class, PaymentSettings.class})
 public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -80,7 +80,7 @@ public class SecurityConfig {
                                                 "/api/v1/catalog/images/**").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
-                                        .requestMatchers("/api/v1/users/**")
+                                        .requestMatchers("/api/v1/users/**", "/api/v1/orders/**")
                                         .authenticated()
                                         .requestMatchers(
                                                 "/api/v1/auth/csrf",

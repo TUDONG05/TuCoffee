@@ -7,6 +7,12 @@
   <nav class="main-nav" aria-label="Điều hướng chính">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Trang chủ</a>
     <a routerLink="/menu" routerLinkActive="active">Thực đơn</a>
+    <a routerLink="/cart" routerLinkActive="active" class="cart-nav-link" aria-label="Giỏ hàng">
+      <span>Giỏ hàng</span>
+      @if (cart.totalCount() > 0) {
+        <span class="cart-badge">{{ cart.totalCount() }}</span>
+      }
+    </a>
   </nav>
   <nav class="account-nav" aria-label="Tài khoản">
     @if (auth.user(); as user) {
@@ -45,6 +51,7 @@
       <nz-dropdown-menu #accountMenu="nzDropdownMenu">
         <ul nz-menu class="account-dropdown" aria-label="Tài khoản">
           <li nz-menu-item><a routerLink="/profile">Tài khoản</a></li>
+          <li nz-menu-item><a routerLink="/orders">Đơn hàng của tôi</a></li>
           @if (auth.isAdmin()) {
             <li nz-menu-item><a routerLink="/admin">Quản trị</a></li>
           }

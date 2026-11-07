@@ -80,3 +80,9 @@ catalog:
   upload-dir: ${CATALOG_UPLOAD_DIR:uploads/catalog}
   seed:
     enabled: ${CATALOG_SEED_ENABLED:false}
+
+payment:
+  bank:
+    code: ${BANK_CODE:VCB}
+    account: ${BANK_ACCOUNT:0123456789}
+    account-name: ${BANK_ACCOUNT_NAME:TU COFFEE}
