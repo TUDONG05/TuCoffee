@@ -77,7 +77,9 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                                 "/api/v1/categories", "/api/v1/products", "/api/v1/products/**",
-                                                "/api/v1/catalog/images/**").permitAll()
+                                                "/api/v1/catalog/images/**",
+                                                "/api/v1/orders/vnpay-ipn",
+                                                "/api/v1/orders/vnpay-return").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
                                         .requestMatchers("/api/v1/users/**", "/api/v1/orders/**")

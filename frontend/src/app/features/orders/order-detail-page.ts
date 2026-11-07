@@ -106,6 +106,31 @@ import { HttpErrorResponse } from '@angular/common/http';
               </div>
             }
 
+            <!-- Payment VNPAY Card if VNPAY and UNPAID -->
+            @if (ord.payment?.method === 'VNPAY' && ord.payment?.status === 'UNPAID' && ord.status !== 'CANCELLED') {
+              <div class="qr-payment-card vnpay-payment-card">
+                <div class="qr-card-header">
+                  <h2>Cổng thanh toán trực tuyến VNPAY</h2>
+                  <span class="qr-tag vnpay-tag">VNPAY Gateway</span>
+                </div>
+                <div class="vnpay-body">
+                  <p class="vnpay-desc">
+                    Đơn hàng chưa được thanh toán. Bạn có thể thanh toán ngay qua cổng VNPAY (chấp nhận ATM nội địa, thẻ quốc tế Visa/MasterCard hoặc quét mã QR qua ứng dụng ngân hàng/ví VNPAY).
+                  </p>
+                  <button
+                    nz-button
+                    nzType="primary"
+                    nzSize="large"
+                    class="vnpay-btn"
+                    [nzLoading]="redirectingVnPay()"
+                    (click)="payWithVnPay(ord.id)"
+                  >
+                    💳 Thanh toán ngay qua VNPAY ({{ ord.totalVnd | vnd }})
+                  </button>
+                </div>
+              </div>
+            }
+
             <div class="info-section">
               <h2>Danh sách món đã đặt</h2>
               <div class="items-table">
@@ -159,7 +184,7 @@ import { HttpErrorResponse } from '@angular/common/http';
               <h2>Hình thức thanh toán</h2>
               <div class="card-detail">
                 <span class="card-label">Phương thức:</span>
-                <strong>{{ ord.payment?.method === 'QR_TRANSFER' ? 'Chuyển khoản VietQR' : 'Tiền mặt khi nhận' }}</strong>
+                <strong>{{ getPaymentMethodLabel(ord.payment?.method) }}</strong>
               </div>
               <div class="card-detail">
                 <span class="card-label">Trạng thái:</span>
@@ -288,6 +313,39 @@ import { HttpErrorResponse } from '@angular/common/http';
         font-weight: 700;
         padding: 0.2rem 0.5rem;
         border-radius: 4px;
+      }
+      .vnpay-tag {
+        background: #0066cc;
+      }
+    }
+    .vnpay-payment-card {
+      border-color: #0066cc;
+      background: #f0f7ff;
+      h2 {
+        color: #0066cc;
+      }
+    }
+    .vnpay-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+    .vnpay-desc {
+      color: #333;
+      margin: 0;
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+    .vnpay-btn {
+      background: #0066cc;
+      border-color: #0066cc;
+      font-weight: 600;
+      height: 48px;
+      padding: 0 1.5rem;
+      &:hover {
+        background: #0052a3;
+        border-color: #0052a3;
       }
     }
     .qr-card-body {
@@ -468,6 +526,7 @@ export class OrderDetailPage implements OnInit {
   readonly order = signal<OrderResponse | null>(null);
   readonly instructions = signal<PaymentInstructionsResponse | null>(null);
   readonly cancelling = signal(false);
+  readonly redirectingVnPay = signal(false);
   readonly confirmModalVisible = signal(false);
   readonly actionFeedback = signal<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -543,6 +602,29 @@ export class OrderDetailPage implements OnInit {
   copyText(text?: string | null): void {
     if (!text) return;
     navigator.clipboard.writeText(text);
+  }
+
+  payWithVnPay(orderId: number): void {
+    this.redirectingVnPay.set(true);
+    this.actionFeedback.set(null);
+    this.orderService.getVnPayUrl(orderId).subscribe({
+      next: (res) => {
+        window.location.href = res.paymentUrl;
+      },
+      error: (err: HttpErrorResponse) => {
+        this.redirectingVnPay.set(false);
+        this.actionFeedback.set({
+          type: 'error',
+          message: err.error?.detail || 'Không thể tạo liên kết thanh toán VNPAY lúc này.',
+        });
+      },
+    });
+  }
+
+  getPaymentMethodLabel(method?: string | null): string {
+    if (method === 'QR_TRANSFER') return 'Chuyển khoản VietQR';
+    if (method === 'VNPAY') return 'Cổng thanh toán VNPAY';
+    return 'Tiền mặt khi nhận';
   }
 
   getStatusColor(status: string): string {

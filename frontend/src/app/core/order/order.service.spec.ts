@@ -76,4 +76,25 @@ describe('OrderService', () => {
     expect(call.request.method).toBe('PATCH');
     call.flush({ id: 8, status: 'CONFIRMED' });
   });
+
+  it('fetches VNPAY payment url via GET /api/v1/orders/:id/vnpay-url', () => {
+    service.getVnPayUrl(12).subscribe((res) => {
+      expect(res.paymentUrl).toContain('sandbox.vnpayment.vn');
+    });
+
+    const call = httpTesting.expectOne('/api/v1/orders/12/vnpay-url');
+    expect(call.request.method).toBe('GET');
+    call.flush({ paymentUrl: 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?test' });
+  });
+
+  it('processes VNPAY return params via GET /api/v1/orders/vnpay-return', () => {
+    service.processVnPayReturn({ vnp_TxnRef: 'TC123', vnp_ResponseCode: '00' }).subscribe((res) => {
+      expect(res.success).toBe(true);
+      expect(res.publicCode).toBe('TC123');
+    });
+
+    const call = httpTesting.expectOne('/api/v1/orders/vnpay-return?vnp_TxnRef=TC123&vnp_ResponseCode=00');
+    expect(call.request.method).toBe('GET');
+    call.flush({ success: true, code: '00', message: 'Thanh toán thành công', publicCode: 'TC123', orderId: 10 });
+  });
 });

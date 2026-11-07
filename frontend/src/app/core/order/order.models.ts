@@ -10,7 +10,19 @@ export interface CreateOrderRequest {
   customerPhone?: string | null;
   customerAddress?: string | null;
   note?: string | null;
-  paymentMethod: 'CASH' | 'QR_TRANSFER';
+  paymentMethod: 'CASH' | 'QR_TRANSFER' | 'VNPAY';
+}
+
+export interface VnPayPaymentUrlResponse {
+  paymentUrl: string;
+}
+
+export interface VnPayReturnResponse {
+  success: boolean;
+  code: string;
+  message: string;
+  orderId?: number | null;
+  publicCode: string;
 }
 
 export interface OrderItemResponse {
@@ -24,7 +36,7 @@ export interface OrderItemResponse {
 
 export interface PaymentResponse {
   id: number;
-  method: 'CASH' | 'QR_TRANSFER';
+  method: 'CASH' | 'QR_TRANSFER' | 'VNPAY';
   status: 'UNPAID' | 'PAID';
   amountVnd: number;
   bankCode?: string | null;
@@ -55,7 +67,7 @@ export interface OrderResponse {
 }
 
 export interface PaymentInstructionsResponse {
-  method: 'CASH' | 'QR_TRANSFER';
+  method: 'CASH' | 'QR_TRANSFER' | 'VNPAY';
   status: 'UNPAID' | 'PAID';
   amountVnd: number;
   bankCode?: string | null;

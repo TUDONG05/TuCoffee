@@ -49,6 +49,7 @@ export const routes: Routes = [
   { path: 'cart', title: 'Giỏ hàng | Tu’s Coffee', loadComponent: () => import('./features/cart/cart-page').then(m => m.CartPage) },
   { path: 'checkout', title: 'Đặt hàng & Thanh toán | Tu’s Coffee', canActivate: [authGuard], loadComponent: () => import('./features/checkout/checkout-page').then(m => m.CheckoutPage) },
   { path: 'orders', title: 'Đơn hàng của tôi | Tu’s Coffee', canActivate: [authGuard], loadComponent: () => import('./features/orders/my-orders-page').then(m => m.MyOrdersPage) },
+  { path: 'orders/vnpay-return', title: 'Kết quả thanh toán VNPAY | Tu’s Coffee', canActivate: [authGuard], loadComponent: () => import('./features/orders/vnpay-return-page').then(m => m.VnPayReturnPage) },
   { path: 'orders/:id', title: 'Chi tiết đơn hàng | Tu’s Coffee', canActivate: [authGuard], loadComponent: () => import('./features/orders/order-detail-page').then(m => m.OrderDetailPage) },
   { path: '**', redirectTo: '' },
 ];

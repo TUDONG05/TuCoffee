@@ -122,6 +122,14 @@ import { HttpErrorResponse } from '@angular/common/http';
                     </span>
                   </div>
                 </label>
+                <label nz-radio nzValue="VNPAY" class="payment-radio">
+                  <div class="payment-info">
+                    <strong>Cổng thanh toán VNPAY</strong>
+                    <span class="payment-desc">
+                      Thanh toán qua VNPAY (ATM nội địa, Visa/MasterCard, VNPAY-QR).
+                    </span>
+                  </div>
+                </label>
                 <label nz-radio nzValue="CASH" class="payment-radio">
                   <div class="payment-info">
                     <strong>Tiền mặt khi nhận hàng (COD)</strong>
@@ -371,7 +379,7 @@ export class CheckoutPage {
       [Validators.required, Validators.maxLength(300)],
     ],
     note: ['', [Validators.maxLength(1000)]],
-    paymentMethod: ['QR_TRANSFER' as 'CASH' | 'QR_TRANSFER', [Validators.required]],
+    paymentMethod: ['QR_TRANSFER' as 'CASH' | 'QR_TRANSFER' | 'VNPAY', [Validators.required]],
   });
 
   submitOrder(): void {
@@ -397,8 +405,20 @@ export class CheckoutPage {
     this.orderService.createOrder(req, this.idempotencyKey).subscribe({
       next: (order) => {
         this.cart.clear();
-        this.submitting.set(false);
-        this.router.navigate(['/orders', order.id]);
+        if (order.payment?.method === 'VNPAY') {
+          this.orderService.getVnPayUrl(order.id).subscribe({
+            next: (vnpRes) => {
+              window.location.href = vnpRes.paymentUrl;
+            },
+            error: () => {
+              this.submitting.set(false);
+              this.router.navigate(['/orders', order.id]);
+            },
+          });
+        } else {
+          this.submitting.set(false);
+          this.router.navigate(['/orders', order.id]);
+        }
       },
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);

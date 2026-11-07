@@ -10,6 +10,8 @@ import {
   OrderPageResponse,
   OrderResponse,
   PaymentInstructionsResponse,
+  VnPayPaymentUrlResponse,
+  VnPayReturnResponse,
 } from './order.models';
 
 @Injectable({
@@ -36,6 +38,20 @@ export class OrderService {
 
   getPaymentInstructions(id: number): Observable<PaymentInstructionsResponse> {
     return this.http.get<PaymentInstructionsResponse>(`/api/v1/orders/${id}/payment-instructions`);
+  }
+
+  getVnPayUrl(id: number): Observable<VnPayPaymentUrlResponse> {
+    return this.http.get<VnPayPaymentUrlResponse>(`/api/v1/orders/${id}/vnpay-url`);
+  }
+
+  processVnPayReturn(params: Record<string, string>): Observable<VnPayReturnResponse> {
+    let httpParams = new HttpParams();
+    for (const key of Object.keys(params)) {
+      if (params[key] !== undefined && params[key] !== null) {
+        httpParams = httpParams.set(key, params[key]);
+      }
+    }
+    return this.http.get<VnPayReturnResponse>('/api/v1/orders/vnpay-return', { params: httpParams });
   }
 
   cancelOrder(id: number, request: CancelOrderRequest): Observable<OrderResponse> {

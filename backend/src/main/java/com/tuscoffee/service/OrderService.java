@@ -29,6 +29,7 @@ public class OrderService {
     private final ProductRepository productRepo;
     private final UserRepository userRepo;
     private final PaymentSettings paymentSettings;
+    private final VnPayService vnPayService;
 
     public OrderService(
             OrderRepository orderRepo,
@@ -38,7 +39,8 @@ public class OrderService {
             OrderEventRepository orderEventRepo,
             ProductRepository productRepo,
             UserRepository userRepo,
-            PaymentSettings paymentSettings) {
+            PaymentSettings paymentSettings,
+            VnPayService vnPayService) {
         this.orderRepo = orderRepo;
         this.orderItemRepo = orderItemRepo;
         this.orderRequestRepo = orderRequestRepo;
@@ -47,6 +49,7 @@ public class OrderService {
         this.productRepo = productRepo;
         this.userRepo = userRepo;
         this.paymentSettings = paymentSettings;
+        this.vnPayService = vnPayService;
     }
 
     @Transactional
@@ -95,8 +98,8 @@ public class OrderService {
             note = note.substring(0, 1000);
         }
         String paymentMethod = req.paymentMethod();
-        if (!"CASH".equals(paymentMethod) && !"QR_TRANSFER".equals(paymentMethod)) {
-            throw new ApiException(400, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán phải là CASH hoặc QR_TRANSFER.");
+        if (!"CASH".equals(paymentMethod) && !"QR_TRANSFER".equals(paymentMethod) && !"VNPAY".equals(paymentMethod)) {
+            throw new ApiException(400, "INVALID_PAYMENT_METHOD", "Phương thức thanh toán phải là CASH, QR_TRANSFER hoặc VNPAY.");
         }
 
         Map<Long, Integer> quantityByProduct = new LinkedHashMap<>();
@@ -522,6 +525,141 @@ public class OrderService {
                 order.getCancelledAt(),
                 itemDtos,
                 paymentDto);
+    }
+
+    @Transactional(readOnly = true)
+    public VnPayPaymentUrlResponse getVnPayPaymentUrl(long orderId, long currentUserId, boolean isAdmin, String ipAddress) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng."));
+
+        if (!isAdmin && order.getBuyer() != null && !Objects.equals(order.getBuyer().getId(), currentUserId)) {
+            throw new ApiException(403, "FORBIDDEN", "Bạn không có quyền truy cập đơn hàng này.");
+        }
+
+        Payment payment = paymentRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new ApiException(404, "PAYMENT_NOT_FOUND", "Không tìm thấy thông tin thanh toán."));
+
+        if ("PAID".equals(payment.getStatus())) {
+            throw new ApiException(400, "ALREADY_PAID", "Đơn hàng đã được thanh toán thành công.");
+        }
+        if ("CANCELLED".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
+            throw new ApiException(400, "INVALID_ORDER_STATUS", "Không thể thanh toán đơn hàng có trạng thái " + order.getStatus() + ".");
+        }
+
+        String url = vnPayService.createPaymentUrl(order, ipAddress);
+        return new VnPayPaymentUrlResponse(url);
+    }
+
+    @Transactional
+    public VnPayIpnResponse processVnPayIpn(Map<String, String> params) {
+        if (!vnPayService.verifySignature(params)) {
+            return new VnPayIpnResponse("97", "Invalid Checksum");
+        }
+
+        String txnRef = params.get("vnp_TxnRef");
+        if (txnRef == null || txnRef.isBlank()) {
+            return new VnPayIpnResponse("01", "Order not Found");
+        }
+
+        Order order = orderRepo.findByPublicCode(txnRef).orElse(null);
+        if (order == null) {
+            return new VnPayIpnResponse("01", "Order not Found");
+        }
+
+        Payment payment = paymentRepo.findByOrderId(order.getId()).orElse(null);
+        if (payment == null) {
+            return new VnPayIpnResponse("01", "Order not Found");
+        }
+
+        long vnpAmount;
+        try {
+            vnpAmount = Long.parseLong(params.getOrDefault("vnp_Amount", "0"));
+        } catch (NumberFormatException e) {
+            return new VnPayIpnResponse("04", "Invalid Amount");
+        }
+
+        if (vnpAmount != order.getTotalVnd() * 100) {
+            return new VnPayIpnResponse("04", "Invalid Amount");
+        }
+
+        if ("PAID".equals(payment.getStatus())) {
+            return new VnPayIpnResponse("02", "Order already confirmed");
+        }
+
+        String responseCode = params.get("vnp_ResponseCode");
+        String transactionNo = params.getOrDefault("vnp_TransactionNo", "");
+        String bankCode = params.getOrDefault("vnp_BankCode", "");
+        User actor = order.getBuyer() != null ? order.getBuyer() : order.getCreatedBy();
+
+        if ("00".equals(responseCode)) {
+            payment.markPaid(null, "VNPAY:" + transactionNo, transactionNo);
+            paymentRepo.save(payment);
+
+            OrderEvent event = new OrderEvent(
+                    order,
+                    actor,
+                    "PAYMENT_CONFIRMED",
+                    order.getStatus(),
+                    order.getStatus(),
+                    order.getVersion(),
+                    transactionNo,
+                    "Xác nhận thanh toán VNPAY IPN thành công (Mã GD: " + transactionNo + ", Ngân hàng: " + bankCode + ").");
+            orderEventRepo.save(event);
+        } else {
+            OrderEvent event = new OrderEvent(
+                    order,
+                    actor,
+                    "PAYMENT_FAILED",
+                    order.getStatus(),
+                    order.getStatus(),
+                    order.getVersion(),
+                    transactionNo,
+                    "Thanh toán VNPAY không thành công (ResponseCode: " + responseCode + ").");
+            orderEventRepo.save(event);
+        }
+
+        return new VnPayIpnResponse("00", "Confirm Success");
+    }
+
+    @Transactional
+    public VnPayReturnResponse processVnPayReturn(Map<String, String> params) {
+        boolean valid = vnPayService.verifySignature(params);
+        String txnRef = params.get("vnp_TxnRef");
+        String responseCode = params.getOrDefault("vnp_ResponseCode", "");
+        String transactionNo = params.getOrDefault("vnp_TransactionNo", "");
+
+        Order order = txnRef != null ? orderRepo.findByPublicCode(txnRef).orElse(null) : null;
+        Long orderId = order != null ? order.getId() : null;
+
+        if (!valid) {
+            return new VnPayReturnResponse(false, "97", "Chữ ký không hợp lệ.", orderId, txnRef);
+        }
+
+        if ("00".equals(responseCode)) {
+            if (order != null) {
+                User actor = order.getBuyer() != null ? order.getBuyer() : order.getCreatedBy();
+                paymentRepo.findByOrderId(order.getId()).ifPresent(payment -> {
+                    if (!"PAID".equals(payment.getStatus())) {
+                        payment.markPaid(null, "VNPAY:" + transactionNo, transactionNo);
+                        paymentRepo.save(payment);
+
+                        OrderEvent event = new OrderEvent(
+                                order,
+                                actor,
+                                "PAYMENT_CONFIRMED",
+                                order.getStatus(),
+                                order.getStatus(),
+                                order.getVersion(),
+                                transactionNo,
+                                "Thanh toán VNPAY thành công qua Return URL (Mã GD: " + transactionNo + ").");
+                        orderEventRepo.save(event);
+                    }
+                });
+            }
+            return new VnPayReturnResponse(true, "00", "Giao dịch thanh toán thành công qua VNPAY.", orderId, txnRef);
+        }
+
+        return new VnPayReturnResponse(false, responseCode, "Giao dịch không thành công hoặc người dùng đã hủy (Mã lỗi: " + responseCode + ").", orderId, txnRef);
     }
 
     private String generatePublicCode() {

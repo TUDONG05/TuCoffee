@@ -86,3 +86,8 @@ payment:
     code: ${BANK_CODE:VCB}
     account: ${BANK_ACCOUNT:0123456789}
     account-name: ${BANK_ACCOUNT_NAME:TU COFFEE}
+  vnpay:
+    tmn-code: ${VNPAY_TMN_CODE:DEMOV210}
+    hash-secret: ${VNPAY_HASH_SECRET:DEMOHASHSECRET210}
+    pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+    return-url: ${VNPAY_RETURN_URL:http://localhost:4200/orders/vnpay-return}

@@ -127,7 +127,7 @@ import { VndPipe } from '../../../core/catalog/catalog-ui';
                   <nz-tag [nzColor]="order.payment?.status === 'PAID' ? 'success' : 'warning'">
                     {{ order.payment?.status === 'PAID' ? 'ĐÃ TRẢ' : 'CHƯA TRẢ' }}
                   </nz-tag>
-                  <small class="method-tag">{{ order.payment?.method === 'QR_TRANSFER' ? 'VietQR' : 'Tiền mặt' }}</small>
+                  <small class="method-tag">{{ order.payment?.method === 'QR_TRANSFER' ? 'VietQR' : (order.payment?.method === 'VNPAY' ? 'VNPAY' : 'Tiền mặt') }}</small>
                 </td>
                 <td>
                   {{ order.createdAt | date: 'dd/MM/yy HH:mm' }}

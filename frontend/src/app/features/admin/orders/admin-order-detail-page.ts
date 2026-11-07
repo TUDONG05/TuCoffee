@@ -198,7 +198,7 @@ import { HttpErrorResponse } from '@angular/common/http';
               <h2>Thông tin thanh toán</h2>
               <div class="meta-row">
                 <span class="label">Phương thức:</span>
-                <strong>{{ d.order.payment?.method === 'QR_TRANSFER' ? 'Chuyển khoản VietQR' : 'Tiền mặt' }}</strong>
+                <strong>{{ d.order.payment?.method === 'QR_TRANSFER' ? 'Chuyển khoản VietQR' : (d.order.payment?.method === 'VNPAY' ? 'Cổng thanh toán VNPAY' : 'Tiền mặt') }}</strong>
               </div>
               <div class="meta-row">
                 <span class="label">Trạng thái:</span>

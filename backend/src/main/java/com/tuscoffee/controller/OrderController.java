@@ -3,6 +3,8 @@ package com.tuscoffee.controller;
 import com.tuscoffee.dto.OrderDtos.*;
 import com.tuscoffee.security.IdentityPrincipal;
 import com.tuscoffee.service.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,16 @@ public class OrderController {
             @RequestHeader(value = "Idempotency-Key", required = true) String idempotencyKey,
             @RequestBody CreateOrderRequest req) {
         return orderService.createOnlineOrder(principal.user().id(), idempotencyKey, req, req.toString());
+    }
+
+    @GetMapping("/vnpay-ipn")
+    public VnPayIpnResponse processVnPayIpn(@RequestParam Map<String, String> params) {
+        return orderService.processVnPayIpn(params);
+    }
+
+    @GetMapping("/vnpay-return")
+    public VnPayReturnResponse processVnPayReturn(@RequestParam Map<String, String> params) {
+        return orderService.processVnPayReturn(params);
     }
 
     @GetMapping("/mine")
@@ -47,6 +59,19 @@ public class OrderController {
             @PathVariable long id) {
         boolean isAdmin = "ADMIN".equals(principal.user().role());
         return orderService.getPaymentInstructions(id, principal.user().id(), isAdmin);
+    }
+
+    @GetMapping("/{id}/vnpay-url")
+    public VnPayPaymentUrlResponse getVnPayPaymentUrl(
+            @AuthenticationPrincipal IdentityPrincipal principal,
+            @PathVariable long id,
+            HttpServletRequest request) {
+        boolean isAdmin = "ADMIN".equals(principal.user().role());
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isBlank()) {
+            ipAddress = request.getRemoteAddr();
+        }
+        return orderService.getVnPayPaymentUrl(id, principal.user().id(), isAdmin, ipAddress);
     }
 
     @PatchMapping("/{id}/cancel")

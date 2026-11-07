@@ -74,6 +74,11 @@ public class Payment {
             this.bankAccount = bankAccount;
             this.bankAccountName = bankAccountName;
             this.transferContent = transferContent;
+        } else if ("VNPAY".equals(method)) {
+            this.bankCode = "VNPAY";
+            this.bankAccount = null;
+            this.bankAccountName = null;
+            this.transferContent = transferContent;
         } else {
             this.bankCode = null;
             this.bankAccount = null;
@@ -95,7 +100,7 @@ public class Payment {
         this.confirmedBy = confirmedBy;
         this.confirmedAt = Instant.now();
         this.confirmationKey = confirmationKey;
-        if ("QR_TRANSFER".equals(this.method)) {
+        if ("QR_TRANSFER".equals(this.method) || "VNPAY".equals(this.method)) {
             this.reference = reference;
         } else {
             this.reference = null;

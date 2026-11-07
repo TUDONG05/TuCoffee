@@ -73,6 +73,23 @@ public final class OrderDtos {
             String qrUrl
     ) {}
 
+    public record VnPayPaymentUrlResponse(
+            String paymentUrl
+    ) {}
+
+    public record VnPayReturnResponse(
+            boolean success,
+            String code,
+            String message,
+            Long orderId,
+            String publicCode
+    ) {}
+
+    public record VnPayIpnResponse(
+            String RspCode,
+            String Message
+    ) {}
+
     public record OrderEventResponse(
             long id,
             long actorId,

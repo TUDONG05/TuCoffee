@@ -40,7 +40,11 @@ class OrderServiceUnitTests {
         coffee = new Product(category, "Ca phe sua da", "Thom ngon", 35000L);
         setEntityId(coffee, 100L);
 
-        PaymentSettings settings = new PaymentSettings(new PaymentSettings.BankSettings("VCB", "0123456789", "TU COFFEE"));
+        PaymentSettings settings = new PaymentSettings(
+                new PaymentSettings.BankSettings("VCB", "0123456789", "TU COFFEE"),
+                new PaymentSettings.VnPaySettings("DEMOV210", "DEMOHASHSECRET210", "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html", "http://localhost:4200/orders/vnpay-return")
+        );
+        VnPayService vnPayService = new VnPayService(settings);
 
         UserRepository userRepo = (UserRepository) java.lang.reflect.Proxy.newProxyInstance(
                 UserRepository.class.getClassLoader(),
@@ -92,6 +96,12 @@ class OrderServiceUnitTests {
                     }
                     if ("findById".equals(method.getName()) || "findByIdForUpdate".equals(method.getName())) {
                         return Optional.ofNullable(orders.get(args[0]));
+                    }
+                    if ("findByPublicCode".equals(method.getName())) {
+                        String code = (String) args[0];
+                        return orders.values().stream()
+                                .filter(o -> code.equals(o.getPublicCode()))
+                                .findFirst();
                     }
                     return null;
                 });
@@ -152,7 +162,8 @@ class OrderServiceUnitTests {
                 orderEventRepo,
                 productRepo,
                 userRepo,
-                settings);
+                settings,
+                vnPayService);
     }
 
     private static void setEntityId(Object entity, Long id) {
@@ -287,5 +298,38 @@ class OrderServiceUnitTests {
         assertEquals("FT123456", payment.getReference());
         assertEquals(1, events.size());
         assertEquals("PAYMENT_CONFIRMED", events.get(0).getEventType());
+    }
+
+    @Test
+    void createOrder_vnpayMethod_successAndUrlGenerated() {
+        CreateOrderRequest req = new CreateOrderRequest(
+                List.of(new CreateOrderItemRequest(100L, 2, 35000L)),
+                "Nguyen Van A",
+                "0901234567",
+                "123 Pho Hue",
+                "It duong",
+                "VNPAY");
+
+        OrderResponse res = orderService.createOnlineOrder(1L, "vnpay-key-1", req, "{}");
+        assertNotNull(res);
+        assertEquals("VNPAY", res.payment().method());
+        assertEquals("UNPAID", res.payment().status());
+
+        VnPayPaymentUrlResponse urlResp = orderService.getVnPayPaymentUrl(res.id(), 1L, false, "127.0.0.1");
+        assertNotNull(urlResp.paymentUrl());
+        assertTrue(urlResp.paymentUrl().startsWith("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?"));
+        assertTrue(urlResp.paymentUrl().contains("vnp_Amount=7000000"));
+    }
+
+    @Test
+    void processVnPayReturn_invalidChecksum() {
+        Map<String, String> params = Map.of(
+                "vnp_TxnRef", "TC123",
+                "vnp_ResponseCode", "00",
+                "vnp_SecureHash", "invalid_hash"
+        );
+        VnPayReturnResponse returnResp = orderService.processVnPayReturn(params);
+        assertFalse(returnResp.success());
+        assertEquals("97", returnResp.code());
     }
 }
