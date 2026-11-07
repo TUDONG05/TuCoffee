@@ -71,6 +71,9 @@ public class OrderController {
         if (ipAddress == null || ipAddress.isBlank()) {
             ipAddress = request.getRemoteAddr();
         }
+        if (ipAddress != null && (ipAddress.contains(":") || "0:0:0:0:0:0:0:1".equals(ipAddress))) {
+            ipAddress = "127.0.0.1";
+        }
         return orderService.getVnPayPaymentUrl(id, principal.user().id(), isAdmin, ipAddress);
     }
 
