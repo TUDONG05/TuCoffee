@@ -80,8 +80,18 @@
             <span class="category-name">{{ product.category.name }}</span>
             <h2>{{ product.name }}</h2>
             <div class="product-bottom">
-              <strong>{{ product.priceVnd | vnd }}</strong
-              ><span class="detail-link">Xem chi tiết</span>
+              <strong>{{ product.priceVnd | vnd }}</strong>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                class="quick-add-btn"
+                type="button"
+                aria-label="Thêm vào giỏ"
+                (click)="addToCart($event, product)"
+              >
+                + Giỏ
+              </button>
             </div>
           </div></a
         >

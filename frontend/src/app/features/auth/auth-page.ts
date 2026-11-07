@@ -51,6 +51,13 @@ export class AuthPage implements OnChanges {
   readonly modeChange = output<'login' | 'register'>();
   readonly busyChange = output<boolean>();
   private readonly reportBusy = effect(() => this.busyChange.emit(this.busy()));
+  private readonly redirectIfLoggedIn = effect(() => {
+    const user = typeof this.auth.user === 'function' ? this.auth.user() : null;
+    if (!this.embedded && user) {
+      const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+      void this.router.navigateByUrl(safeReturnUrl(returnUrl));
+    }
+  });
   get embedded(): boolean {
     return this.mode !== undefined;
   }

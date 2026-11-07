@@ -34,6 +34,14 @@ describe('authInterceptor', () => {
   });
   afterEach(() => http.verify());
 
+  it('attaches bearer token to protected orders endpoints', async () => {
+    const result = firstValueFrom(client.get('/api/v1/orders/mine'));
+    const request = http.expectOne('/api/v1/orders/mine');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer old-token');
+    request.flush({ items: [] });
+    await result;
+  });
+
   it('never adds a bearer to third-party, public health or authentication requests', async () => {
     for (const url of [
       'https://example.com/api/v1/users/me',

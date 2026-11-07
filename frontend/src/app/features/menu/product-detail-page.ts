@@ -6,6 +6,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { CatalogService } from '../../core/catalog/catalog.service';
+import { CartService } from '../../core/cart/cart.service';
 import { Product } from '../../core/catalog/catalog.models';
 import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
 @Component({
@@ -35,7 +36,52 @@ import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
           <p class="description">
             {{ item.description || 'Thông tin sản phẩm đang được cập nhật.' }}
           </p>
-          <a nz-button nzSize="large" routerLink="/menu">Tiếp tục xem thực đơn</a>
+
+          <div class="purchase-row">
+            <div class="qty-control" aria-label="Chọn số lượng">
+              <button
+                nz-button
+                nzSize="large"
+                type="button"
+                [disabled]="quantity() <= 1"
+                (click)="quantity.set(quantity() - 1)"
+              >
+                –
+              </button>
+              <span class="qty-num">{{ quantity() }}</span>
+              <button
+                nz-button
+                nzSize="large"
+                type="button"
+                [disabled]="quantity() >= 99"
+                (click)="quantity.set(quantity() + 1)"
+              >
+                +
+              </button>
+            </div>
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="large"
+              type="button"
+              class="add-cart-btn"
+              (click)="addToCart(item)"
+            >
+              Thêm vào giỏ · {{ item.priceVnd * quantity() | vnd }}
+            </button>
+          </div>
+
+          @if (addedToCart()) {
+            <div class="add-feedback">
+              <span>✓ Đã thêm {{ quantity() }} món vào giỏ hàng!</span>
+              <a routerLink="/cart" class="view-cart-link">Xem giỏ hàng →</a>
+            </div>
+          }
+
+          <div class="action-links">
+            <a nz-button nzSize="large" routerLink="/cart">Xem giỏ hàng</a>
+            <a nz-button nzType="text" nzSize="large" routerLink="/menu">Tiếp tục xem thực đơn</a>
+          </div>
         </div>
       </div>
     }
@@ -73,7 +119,65 @@ import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
       font-size: 1.75rem;
       font-weight: 700;
       color: var(--brand);
-      margin: 0 0 1.5rem;
+    }
+    .description {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .purchase-row {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .qty-control {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      overflow: hidden;
+      .qty-num {
+        padding: 0 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        min-width: 44px;
+        text-align: center;
+      }
+    }
+    .add-cart-btn {
+      height: 44px;
+      padding-inline: 1.5rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      background: var(--brand);
+      border-color: var(--brand);
+      &:hover {
+        background: #6e3e1d;
+        border-color: #6e3e1d;
+      }
+    }
+    .add-feedback {
+      background: #f6ffed;
+      border: 1px solid #b7eb8f;
+      color: #389e0d;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      .view-cart-link {
+        font-weight: 600;
+        color: var(--brand);
+        text-decoration: underline;
+      }
+    }
+    .action-links {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
     }
     .description {
       white-space: pre-line;
@@ -102,10 +206,19 @@ export class ProductDetailPage {
   private readonly api = inject(CatalogService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroy = inject(DestroyRef);
+  readonly cart = inject(CartService);
   readonly product = signal<Product | null>(null);
   readonly busy = signal(true);
   readonly error = signal('');
+  readonly quantity = signal(1);
+  readonly addedToCart = signal(false);
   private id = 0;
+
+  addToCart(product: Product): void {
+    this.cart.addItem(product, this.quantity());
+    this.addedToCart.set(true);
+    setTimeout(() => this.addedToCart.set(false), 3000);
+  }
   constructor() {
     this.route.paramMap
       .pipe(

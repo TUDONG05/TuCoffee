@@ -3,6 +3,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { AuthService } from './core/auth/auth.service';
+import { CartService } from './core/cart/cart.service';
 import { AuthPage } from './features/auth/auth-page';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -31,6 +32,7 @@ export class App {
   readonly accountMenuOpen = signal(false);
   readonly currentYear = new Date().getFullYear();
   readonly auth = inject(AuthService);
+  readonly cart = inject(CartService);
   private readonly router = inject(Router);
   readonly isAdminArea = toSignal(this.router.events.pipe(
     filter((event): event is NavigationEnd => event instanceof NavigationEnd),

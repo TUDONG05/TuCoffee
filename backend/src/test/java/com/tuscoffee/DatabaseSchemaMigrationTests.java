@@ -44,7 +44,7 @@ class DatabaseSchemaMigrationTests {
   sql("INSERT INTO orders(id,public_code,buyer_id,operator_id,created_by,source,total_vnd,customer_name) VALUES("+id+",'ORDER-"+id+"',"+buyer+","+operator+","+creator+",'"+source+"',50000,'Guest')");
  }
  @Test void freshMigrationsAreRepeatableAndComplete() throws Exception {
-  var f=flyway("latest");assertEquals(7,f.migrate().migrationsExecuted);f.validate();assertEquals(0,f.migrate().migrationsExecuted);
+  var f=flyway("latest");assertEquals(8,f.migrate().migrationsExecuted);f.validate();assertEquals(0,f.migrate().migrationsExecuted);
   assertEquals(22,number("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE()"));
   assertEquals(16,number("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('categories','products','orders','order_items','order_requests','payments','order_events','product_reviews','review_moderation_events','password_reset_challenges','password_reset_limits','knowledge_documents','knowledge_versions','knowledge_chunks','knowledge_ingestion_jobs','knowledge_audit')"));
  }
@@ -52,7 +52,7 @@ class DatabaseSchemaMigrationTests {
   flyway("3").migrate();users();
   sql("INSERT INTO auth_sessions(id,user_id,refresh_hash,expires_at,created_at) VALUES('00000000-0000-0000-0000-000000000001',2,REPEAT('a',64),CURRENT_TIMESTAMP(6)+INTERVAL 1 DAY,CURRENT_TIMESTAMP(6))");
   long checksum=number("SELECT SUM(checksum) FROM flyway_schema_history WHERE version IN ('1','2','3')");
-  var f=flyway("latest");assertEquals(4,f.migrate().migrationsExecuted);f.validate();
+  var f=flyway("latest");assertEquals(5,f.migrate().migrationsExecuted);f.validate();
   assertEquals(2,number("SELECT COUNT(*) FROM users"));assertEquals(1,number("SELECT COUNT(*) FROM auth_sessions"));
   assertEquals(checksum,number("SELECT SUM(checksum) FROM flyway_schema_history WHERE version IN ('1','2','3')"));
   assertEquals(0,f.migrate().migrationsExecuted);

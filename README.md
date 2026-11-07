@@ -2,9 +2,9 @@
 
 Đăng nhập Google đã có phần tích hợp; cần cấu hình `GOOGLE_CLIENT_ID` trong `.env` và origin trên Google Cloud để sử dụng. Xem [hướng dẫn Google](docs/api/google-login.md). Đăng nhập email/mật khẩu tiếp tục hoạt động khi chưa bật Google.
 
-Ứng dụng TuCoffee được phát triển từng giai đoạn. **Đã triển khai bộ khung và giai đoạn 2: tài khoản, hồ sơ và phân quyền USER/ADMIN.**
+Ứng dụng TuCoffee được phát triển từng giai đoạn. **Đã triển khai giai đoạn 1–4: nền tảng, tài khoản/phân quyền, thực đơn/quản lý sản phẩm và giỏ hàng/đơn hàng/thanh toán.**
 
-Có đăng ký, đăng nhập, khôi phục phiên khi tải lại trang, đăng xuất, đổi mật khẩu; ADMIN tìm kiếm và khóa/mở tài khoản. Thực đơn, giỏ hàng và đơn hàng chưa triển khai. Tích điểm và khuyến mãi để sau.
+Có đăng ký, đăng nhập, khôi phục phiên khi tải lại trang, đăng xuất, đổi mật khẩu; ADMIN tìm kiếm và khóa/mở tài khoản. Khách xem/tìm/lọc thực đơn, chi tiết món, giỏ hàng, đặt hàng có Idempotency-Key chống trùng lặp, thanh toán chuyển khoản VietQR / COD, xem lịch sử và chi tiết đơn hàng; ADMIN quản lý danh mục, sản phẩm, ảnh, quản trị đơn hàng, chuyển trạng thái và xác nhận thanh toán. Tích điểm và khuyến mãi để sau.
 
 ## Công nghệ đã chọn
 
@@ -27,7 +27,7 @@ Frontend dùng NG-ZORRO trong các component standalone cho form, input, nút, t
 
 ```text
 backend/                     Spring Boot monolith, Spring Data JPA, MySQL/Flyway
-frontend/                    Angular standalone, auth, hồ sơ và quản trị tài khoản
+frontend/                    Angular standalone, auth, hồ sơ, menu và quản trị tài khoản/catalog
 scripts/                     Chuẩn bị môi trường và chạy E2E với MySQL native
 docs/api/openapi.yaml         Hợp đồng API đã có
 docs/design-guidelines.md     Quy ước giao diện
@@ -126,7 +126,7 @@ npm start
 
 - Trang khởi đầu: [http://localhost:4200](http://localhost:4200).
 - Trang phát triển kiểm tra kết nối: [http://localhost:4200/dev/status](http://localhost:4200/dev/status).
-- Tài khoản: `/register`, `/login`, `/profile`; quản trị tài khoản: `/admin/users`.
+- Tài khoản: `/register`, `/login`, `/profile`; thực đơn: `/menu`, `/products/:id`; giỏ hàng & đơn hàng: `/cart`, `/checkout`, `/orders`, `/orders/:id`; quản trị: `/admin/users`, `/admin/products`, `/admin/categories`, `/admin/orders`, `/admin/orders/:id`.
 - Angular gọi `/api/v1/health` qua dev proxy; URL backend không nằm trong component.
 - Nếu đổi cổng backend, cập nhật target trong `frontend/src/proxy.conf.json` rồi khởi động lại dev server.
 
@@ -178,6 +178,8 @@ npx playwright install chromium
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-identity-e2e.ps1
 ```
 
+Script E2E tắt Turnstile riêng cho tiến trình kiểm thử, quản lý frontend/backend riêng và kiểm tra catalog/ảnh sau restart cùng seed lần hai. Có thể thêm `-PlaywrightArgs '--workers=2'` để giới hạn tải trên máy local.
+
 Workflow `.github/workflows/ci.yml` chuẩn bị kiểm tra backend với MySQL, frontend và smoke test. Workflow chỉ thực sự chạy trên GitHub sau khi có repository/commit được đẩy lên; hiện chưa cấu hình remote hoặc push tự động.
 
 ## Tạo tài khoản quản trị
@@ -205,4 +207,4 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 
 ## Thiết kế database toàn dự án
 
-Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). V4–V7 tạo schema catalog, orders/payments/POS, reviews/reset và knowledge RAG. Có schema chưa đồng nghĩa chức năng API/UI đã triển khai; dữ liệu 18 sản phẩm tham khảo chưa được nhập tự động.
+Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). V4–V7 tạo schema catalog, orders/payments/POS, reviews/reset và knowledge RAG. Catalog đã có API/UI và đã nhập local 18 sản phẩm/5 danh mục/18 ảnh; importer mặc định tắt, chỉ chạy khi bật tường minh ở profile local. Schema các phần còn lại chưa đồng nghĩa API/UI đã triển khai.

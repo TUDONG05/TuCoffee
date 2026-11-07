@@ -3,7 +3,7 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 export function safeReturnUrl(value: string | null): string {
-  return value && ['/profile', '/admin', '/admin/users', '/admin/products', '/admin/categories'].includes(value)
+  return value && ['/checkout', '/orders', '/profile', '/admin', '/admin/users', '/admin/products', '/admin/categories'].includes(value)
     ? value : '/profile';
 }
 

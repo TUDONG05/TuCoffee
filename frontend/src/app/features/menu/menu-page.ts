@@ -8,7 +8,8 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { CatalogService } from '../../core/catalog/catalog.service';
-import { Category } from '../../core/catalog/catalog.models';
+import { CartService } from '../../core/cart/cart.service';
+import { Category, Product } from '../../core/catalog/catalog.models';
 import { ProductListState } from '../../core/catalog/product-list-state';
 import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
 @Component({
@@ -31,11 +32,17 @@ import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
 export class MenuPage {
   private readonly api = inject(CatalogService);
   private readonly destroy = inject(DestroyRef);
+  readonly cart = inject(CartService);
   readonly list = new ProductListState(this.api, this.destroy);
   readonly categories = signal<Category[]>([]);
   readonly categoryError = signal(false);
   constructor() {
     this.loadCategories();
+  }
+  addToCart(event: Event, product: Product): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.cart.addItem(product, 1);
   }
   loadCategories(): void {
     this.categoryError.set(false);

@@ -28,7 +28,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
-@EnableConfigurationProperties({AuthSettings.class, com.tuscoffee.security.GoogleSettings.class})
+@EnableConfigurationProperties({AuthSettings.class, com.tuscoffee.security.GoogleSettings.class, PaymentSettings.class})
 public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -64,7 +64,8 @@ public class SecurityConfig {
             throws Exception {
         http.sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(config -> config.spa().csrfTokenRepository(csrf))
+                .csrf(config -> config.spa().csrfTokenRepository(csrf)
+                        .ignoringRequestMatchers("/api/v1/sepay/webhook"))
                 .cors(cors -> cors.configurationSource(corsSource(settings)))
                 .requestCache(cache -> cache.disable())
                 .httpBasic(basic -> basic.disable())
@@ -77,10 +78,14 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                                 "/api/v1/categories", "/api/v1/products", "/api/v1/products/**",
-                                                "/api/v1/catalog/images/**").permitAll()
+                                                "/api/v1/catalog/images/**",
+                                                "/api/v1/orders/vnpay-ipn",
+                                                "/api/v1/orders/vnpay-return").permitAll()
+                                        .requestMatchers(org.springframework.http.HttpMethod.POST,
+                                                "/api/v1/sepay/webhook").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
-                                        .requestMatchers("/api/v1/users/**")
+                                        .requestMatchers("/api/v1/users/**", "/api/v1/orders", "/api/v1/orders/**")
                                         .authenticated()
                                         .requestMatchers(
                                                 "/api/v1/auth/csrf",
