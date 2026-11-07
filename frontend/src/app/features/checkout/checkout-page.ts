@@ -145,38 +145,17 @@ import { HttpErrorResponse } from '@angular/common/http';
               <nz-alert nzType="error" [nzMessage]="errorMessage()!" nzShowIcon />
             }
 
-            @if (!auth.user()) {
-              <nz-alert
-                nzType="warning"
-                nzMessage="Phiên đăng nhập đã hết hạn"
-                nzDescription="Vui lòng đăng nhập lại để hoàn tất đặt hàng (các món trong giỏ vẫn được giữ nguyên)."
-                nzShowIcon
-                style="margin-bottom: 1rem;"
-              />
-              <a
-                nz-button
-                nzType="primary"
-                nzSize="large"
-                routerLink="/login"
-                [queryParams]="{ returnUrl: '/checkout' }"
-                class="submit-order-btn"
-                style="display: flex; align-items: center; justify-content: center; text-decoration: none;"
-              >
-                Đăng nhập để đặt hàng
-              </a>
-            } @else {
-              <button
-                nz-button
-                nzType="primary"
-                nzSize="large"
-                type="submit"
-                class="submit-order-btn"
-                [nzLoading]="submitting()"
-                [disabled]="form.invalid || submitting()"
-              >
-                Đặt hàng ngay ({{ cart.totalAmountVnd() | vnd }})
-              </button>
-            }
+            <button
+              nz-button
+              nzType="primary"
+              nzSize="large"
+              type="submit"
+              class="submit-order-btn"
+              [nzLoading]="submitting()"
+              [disabled]="form.invalid || submitting()"
+            >
+              Đặt hàng ngay ({{ cart.totalAmountVnd() | vnd }})
+            </button>
           </form>
 
           <aside class="order-review" aria-labelledby="review-title">
@@ -406,11 +385,6 @@ export class CheckoutPage {
   submitOrder(): void {
     if (this.form.invalid || this.cart.isEmpty() || this.submitting()) return;
 
-    if (!this.auth.user()) {
-      this.router.navigate(['/login'], { queryParams: { returnUrl: '/checkout' } });
-      return;
-    }
-
     this.submitting.set(true);
     this.errorMessage.set(null);
 
@@ -448,11 +422,6 @@ export class CheckoutPage {
       },
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);
-        if (err.status === 401) {
-          this.errorMessage.set('Phiên đăng nhập đã hết hạn. Đang chuyển đến trang đăng nhập…');
-          this.router.navigate(['/login'], { queryParams: { returnUrl: '/checkout' } });
-          return;
-        }
         if (err.status === 409) {
           // If price changed or idempotency conflict, refresh key
           this.idempotencyKey = crypto.randomUUID();
