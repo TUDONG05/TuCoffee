@@ -48,7 +48,7 @@ class ReportingIntegrationTests extends MySqlIntegrationSupport {
     @Test void dashboardUsesCompletedPaidSnapshotAndVietnamMidnightBoundaries() {
         var f = fixture();
         long[] ids = new long[6];
-        for (int i=0; i<ids.length; i++) ids[i] = orders.createOnlineOrder(f.admin(), "metrics-"+UUID.randomUUID(), f.request(), null).id();
+        for (int i=0; i<ids.length; i++) ids[i] = orders.createOnlineOrder(f.admin(), UUID.randomUUID().toString(), f.request(), null).id();
         // 2001-02-03 local = 2001-02-02T17:00Z through 2001-02-03T17:00Z exclusive.
         var start = Instant.parse("2001-02-02T17:00:00Z");
         var end = Instant.parse("2001-02-03T17:00:00Z");
