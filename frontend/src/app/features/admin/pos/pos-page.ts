@@ -216,9 +216,10 @@ import { apiError } from '../../../core/auth/api-error';
             @if (activeQrInstructions(); as p) {
               @if (p.qrUrl && o.payment?.status !== 'PAID') {
                 <div class="receipt-qr-section">
-                  <img [src]="p.qrUrl" alt="VietQR" width="160" height="160" />
-                  <p>{{ p.bankAccountName }} · {{ p.bankAccount }}</p>
-                  <p>Nội dung: <strong>{{ p.transferContent }}</strong></p>
+                  <img [src]="p.qrUrl" alt="VietQR" width="270" height="270" />
+                  <p class="qr-account-info">{{ p.bankAccountName }} · {{ p.bankAccount }}</p>
+                  <p class="qr-amount-info">Số tiền: <strong>{{ o.totalVnd | vnd }}</strong></p>
+                  <p class="qr-transfer-content">Nội dung: <strong>{{ p.transferContent }}</strong></p>
                 </div>
               }
             }
@@ -503,6 +504,7 @@ export class PosPage {
     const o = this.activeQrOrder();
     if (!o) return;
     this.activeReceiptOrder.set(o);
+    this.qrModalVisible.set(false);
     this.receiptModalVisible.set(true);
     setTimeout(() => this.triggerPrint(), 350);
   }
