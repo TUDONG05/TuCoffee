@@ -51,7 +51,7 @@ class OrderServiceUnitTests {
                 UserRepository.class.getClassLoader(),
                 new Class<?>[]{UserRepository.class},
                 (proxy, method, args) -> {
-                    if ("findById".equals(method.getName())) {
+                    if ("findById".equals(method.getName()) || "findByIdForUpdate".equals(method.getName())) {
                         Long id = (Long) args[0];
                         if (Long.valueOf(1L).equals(id)) return Optional.of(buyer);
                         if (Long.valueOf(2L).equals(id)) return Optional.of(admin);
@@ -175,6 +175,62 @@ class OrderServiceUnitTests {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private CreateOrderRequest posRequest(String method) {
+        return new CreateOrderRequest(List.of(new CreateOrderItemRequest(100L, 2, 35000L)),
+                "Walk-in", null, null, null, method);
+    }
+
+    @Test
+    void posUsesGuestOperatorAndSharedCalculatorAndReplay() {
+        var response = orderService.createPosOrder(2L, "pos-key", posRequest("CASH"));
+        var saved = orders.get(response.id());
+        assertNull(saved.getBuyer());
+        assertSame(admin, saved.getOperator());
+        assertSame(admin, saved.getCreatedBy());
+        assertEquals("POS", response.source());
+        assertEquals(70000, response.totalVnd());
+        assertEquals("UNPAID", response.payment().status());
+        assertEquals(response.id(), orderService.createPosOrder(2L, "pos-key", posRequest("CASH")).id());
+        assertEquals(1, orders.size());
+        assertEquals(1, events.size());
+        assertEquals(response.id(), orderService.getPosReceipt(response.id()).id());
+        assertEquals(409, assertThrows(ApiException.class,
+                () -> orderService.createPosOrder(2L, "pos-key", posRequest("QR_TRANSFER"))).status());
+        assertEquals(409, assertThrows(ApiException.class,
+                () -> orderService.createOnlineOrder(2L, "pos-key", posRequest("CASH"), null)).status());
+    }
+
+    @Test
+    void posRejectsNonAdminVnpayAndStalePrices() {
+        assertEquals(403, assertThrows(ApiException.class,
+                () -> orderService.createPosOrder(1L, "pos-key", posRequest("CASH"))).status());
+        assertEquals(400, assertThrows(ApiException.class,
+                () -> orderService.createPosOrder(2L, "pos-key", posRequest("VNPAY"))).status());
+        var stale = new CreateOrderRequest(List.of(new CreateOrderItemRequest(100L, 1, 1L)),
+                "Walk-in", null, null, null, "CASH");
+        assertEquals(409, assertThrows(ApiException.class,
+                () -> orderService.createPosOrder(2L, "pos-key", stale)).status());
+        assertTrue(orders.isEmpty());
+    }
+
+    @Test
+    void posCannotCompleteUnpaidQr() {
+        var response = orderService.createPosOrder(2L, "qr-key", posRequest("QR_TRANSFER"));
+        orderService.adminUpdateStatus(response.id(), 2L, new AdminUpdateOrderStatusRequest("CONFIRMED", 0L, null));
+        assertEquals(409, assertThrows(ApiException.class, () -> orderService.adminUpdateStatus(response.id(), 2L,
+                new AdminUpdateOrderStatusRequest("COMPLETED", 0L, null))).status());
+        assertEquals("CONFIRMED", orders.get(response.id()).getStatus());
+    }
+
+    @Test
+    void createAndCompletePosCashOrder_success() {
+        var response = orderService.createAndCompletePosCashOrder(2L, "pos-cash-complete-key", posRequest("CASH"));
+        assertEquals("COMPLETED", response.status());
+        assertNotNull(response.payment());
+        assertEquals("PAID", response.payment().status());
+        assertEquals("POS", response.source());
     }
 
     @Test

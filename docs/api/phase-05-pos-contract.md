@@ -1,0 +1,11 @@
+# Phase 5 POS and reporting contract
+
+All endpoints below require ADMIN authenticated session; mutating requests require CSRF as existing admin APIs.
+
+- `POST /api/v1/admin/pos/orders`: `Idempotency-Key` required, 1?36 characters. JSON uses existing `CreateOrderRequest`: items `[{productId,quantity,expectedPriceVnd}]`, required `customerName`, optional customerPhone/customerAddress/note, `paymentMethod` CASH or QR_TRANSFER. Returns HTTP 201 existing `OrderResponse`; source POS, buyer null, operator and createdBy authenticated administrator. CASH also starts UNPAID. Server calculates prices and stores snapshots.
+- Key is scoped to creator across online/POS. Same key/payload/source replays the existing order; different payload/source returns 409 IDEMPOTENCY_CONFLICT. Creator database lock serializes concurrent requests across processes.
+- `GET /api/v1/admin/pos/orders/{id}/receipt`: existing `OrderResponse` snapshot, 404 for missing/non-POS order. Browser builds protected printable HTML; values come from stored item/payment/order snapshots.
+- Payment and transitions reuse `POST /api/v1/admin/orders/{id}/payment-confirmations` and `PATCH /api/v1/admin/orders/{id}/status`. PENDING -> CONFIRMED -> COMPLETED; cannot complete UNPAID. Confirmation requires amountVnd, confirmationKey, version; QR also reference.
+- `GET /api/v1/admin/dashboard?from=2026-11-01&to=2026-11-09`: dates required in ISO local date, inclusive, interpreted Asia/Ho_Chi_Minh using `[from 00:00, day after to 00:00)` converted to UTC instants. Reversed dates return 400.
+
+Dashboard JSON: `{from,to,timeZone,revenueVnd,completedPaidOrders,totalOrders,statusCounts:{PENDING,CONFIRMED,COMPLETED,CANCELLED},recentOrders:[OrderResponse]}`. Revenue and completedPaidOrders filter completedAt within range and require COMPLETED+PAID; revenue sums orders.totalVnd snapshots once without item joins. totalOrders/statusCounts filter createdAt within range regardless of payment. recentOrders contains at most ten orders created in range, newest createdAt/id first, using stored snapshots. Includes both ONLINE/POS. Thus completedPaidOrders can exceed totalOrders when an older order completes during the range. Empty metrics return zero/empty list.
