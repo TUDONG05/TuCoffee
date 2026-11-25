@@ -194,6 +194,7 @@
         <app-google-sign-in (credential)="signInWithGoogle($event)" />
       </div>
     }
+    @if (!register) { <a routerLink="/forgot-password">Quên mật khẩu?</a> }
     @if (!embedded) {
       <a class="back-home" routerLink="/">← Về trang chủ</a>
     }

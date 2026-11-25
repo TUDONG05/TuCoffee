@@ -25,6 +25,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/auth-page').then((m) => m.AuthPage),
   },
   {
+    path: 'forgot-password',
+    title: 'Khôi phục mật khẩu | Tu’s Coffee',
+    loadComponent: () => import('./features/auth/recovery/recovery-page').then(m => m.RecoveryPage),
+  },
+  {
     path: 'profile',
     title: 'Thông tin cá nhân | Tu\'s Coffee',
     canActivate: [authGuard],
