@@ -55,21 +55,83 @@ public class OrderService {
     @Transactional
     public OrderResponse createOnlineOrder(long buyerId, String idempotencyKey, CreateOrderRequest req,
             String rawPayload) {
-        User buyer = userRepo.findById(buyerId)
+        return createOrder(buyerId, idempotencyKey, req, rawPayload, "ONLINE");
+    }
+
+    @Transactional
+    public OrderResponse createPosOrder(long operatorId, String idempotencyKey, CreateOrderRequest req) {
+        return createOrder(operatorId, idempotencyKey, req, null, "POS");
+    }
+
+    @Transactional
+    public OrderResponse createAndCompletePosCashOrder(long operatorId, String idempotencyKey, CreateOrderRequest req) {
+        OrderResponse res = createOrder(operatorId, idempotencyKey, req, null, "POS");
+        if ("COMPLETED".equals(res.status()) && res.payment() != null && "PAID".equals(res.payment().status())) {
+            return res;
+        }
+        User admin = userRepo.findById(operatorId)
                 .orElseThrow(() -> new ApiException(401, "UNAUTHORIZED", "Tài khoản không hợp lệ."));
+        Order order = orderRepo.findByIdForUpdate(res.id())
+                .orElseThrow(() -> new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng."));
+        Payment payment = paymentRepo.findByOrderId(res.id())
+                .orElseThrow(() -> new ApiException(404, "PAYMENT_NOT_FOUND", "Không tìm thấy thanh toán."));
+
+        if (!"PAID".equals(payment.getStatus())) {
+            String confirmKey = "POS_CASH_" + order.getId() + "_" + order.getPublicCode();
+            payment.markPaid(admin, confirmKey, null);
+            payment = paymentRepo.save(payment);
+            OrderEvent payEvent = new OrderEvent(
+                    order, admin, "PAYMENT_CONFIRMED", order.getStatus(), order.getStatus(),
+                    order.getVersion(), null, "Thanh toán tiền mặt tại quầy đã xác nhận.");
+            orderEventRepo.save(payEvent);
+        }
+
+        if ("PENDING".equals(order.getStatus())) {
+            order.markConfirmed();
+            OrderEvent confEvent = new OrderEvent(
+                    order, admin, "STATUS_CHANGED", "PENDING", "CONFIRMED",
+                    order.getVersion(), null, "Đơn POS xác nhận làm món.");
+            orderEventRepo.save(confEvent);
+        }
+        if ("CONFIRMED".equals(order.getStatus())) {
+            order.markCompleted();
+            OrderEvent compEvent = new OrderEvent(
+                    order, admin, "STATUS_CHANGED", "CONFIRMED", "COMPLETED",
+                    order.getVersion(), null, "Đơn POS hoàn tất tại quầy.");
+            orderEventRepo.save(compEvent);
+        }
+        order = orderRepo.save(order);
+        return mapToOrderResponse(order);
+    }
+
+    private OrderResponse createOrder(long creatorId, String idempotencyKey, CreateOrderRequest req,
+            String rawPayload, String source) {
+        // Lock an existing row before checking a possibly absent request row. This serializes
+        // concurrent submissions across application instances, not just this JVM.
+        User buyer = userRepo.findByIdForUpdate(creatorId)
+                .orElseThrow(() -> new ApiException(401, "UNAUTHORIZED", "Invalid account."));
+        if ("POS".equals(source) && !"ADMIN".equals(buyer.getRole())) {
+            throw new ApiException(403, "FORBIDDEN", "POS requires administrator access.");
+        }
+        if (req == null) {
+            throw new ApiException(400, "INVALID_ORDER", "Order payload is required.");
+        }
+        if ("POS".equals(source) && !"CASH".equals(req.paymentMethod()) && !"QR_TRANSFER".equals(req.paymentMethod())) {
+            throw new ApiException(400, "INVALID_PAYMENT_METHOD", "POS supports CASH or QR_TRANSFER.");
+        }
         if (!buyer.isActive()) {
             throw new ApiException(403, "ACCOUNT_LOCKED", "Tài khoản đã bị khóa.");
         }
         if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 36) {
             throw new ApiException(400, "INVALID_IDEMPOTENCY_KEY", "Idempotency-Key không hợp lệ.");
         }
-        String requestHash = hashSha256(rawPayload != null ? rawPayload : req.toString());
+        String requestHash = hashSha256(("POS".equals(source) ? "POS:" : "") + (rawPayload != null ? rawPayload : req.toString()));
 
         Optional<OrderRequest> existingRequest = orderRequestRepo.findByCreatorIdAndIdempotencyKey(buyer.getId(),
                 idempotencyKey);
         if (existingRequest.isPresent()) {
             OrderRequest ordReq = existingRequest.get();
-            if (ordReq.getRequestHash().equals(requestHash)) {
+            if (source.equals(ordReq.getOrder().getSource()) && ordReq.getRequestHash().equals(requestHash)) {
                 return mapToOrderResponse(ordReq.getOrder());
             } else {
                 throw new ApiException(409, "IDEMPOTENCY_CONFLICT",
@@ -110,7 +172,7 @@ public class OrderService {
         Map<Long, Integer> quantityByProduct = new LinkedHashMap<>();
         Map<Long, Long> expectedPriceByProduct = new LinkedHashMap<>();
         for (CreateOrderItemRequest item : req.items()) {
-            if (item.productId() == null) {
+            if (item == null || item.productId() == null) {
                 throw new ApiException(400, "INVALID_ITEM", "Mã sản phẩm không được để trống.");
             }
             if (item.quantity() == null || item.quantity() < 1 || item.quantity() > 99) {
@@ -134,10 +196,10 @@ public class OrderService {
 
         Order order = new Order(
                 publicCode,
+                "ONLINE".equals(source) ? buyer : null,
+                "POS".equals(source) ? buyer : null,
                 buyer,
-                null,
-                buyer,
-                "ONLINE",
+                source,
                 0L,
                 customerName,
                 customerPhone,
@@ -171,10 +233,10 @@ public class OrderService {
 
         order = new Order(
                 publicCode,
+                "ONLINE".equals(source) ? buyer : null,
+                "POS".equals(source) ? buyer : null,
                 buyer,
-                null,
-                buyer,
-                "ONLINE",
+                source,
                 totalVnd,
                 customerName,
                 customerPhone,
@@ -205,7 +267,7 @@ public class OrderService {
                 "PENDING",
                 0L,
                 null,
-                "Đơn hàng trực tuyến được tạo.");
+                "POS".equals(source) ? "POS order created." : "Online order created.");
         orderEventRepo.save(event);
 
         OrderRequest orderReq = new OrderRequest(buyer, idempotencyKey, requestHash, order);
@@ -218,6 +280,14 @@ public class OrderService {
     public List<OrderResponse> recentOrders(java.time.Instant start, java.time.Instant end) {
         return batchMapOrderResponses(orderRepo.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
                 start, end, PageRequest.of(0, 10)));
+    }
+
+    @Transactional(readOnly = true)
+    public OrderResponse getPosReceipt(long orderId) {
+        Order order = orderRepo.findById(orderId)
+                .filter(o -> "POS".equals(o.getSource()))
+                .orElseThrow(() -> new ApiException(404, "ORDER_NOT_FOUND", "POS order not found."));
+        return mapToOrderResponse(order);
     }
 
     @Transactional(readOnly = true)
@@ -565,7 +635,7 @@ public class OrderService {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new ApiException(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn hàng."));
 
-        if (!isAdmin && order.getBuyer() != null && !Objects.equals(order.getBuyer().getId(), currentUserId)) {
+        if (!isAdmin && (order.getBuyer() == null || !Objects.equals(order.getBuyer().getId(), currentUserId))) {
             throw new ApiException(403, "FORBIDDEN", "Bạn không có quyền truy cập đơn hàng này.");
         }
 

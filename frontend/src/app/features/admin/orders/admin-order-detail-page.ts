@@ -29,6 +29,7 @@ import { HttpErrorResponse } from '@angular/common/http';
     <section class="admin-order-detail" aria-labelledby="admin-detail-title">
       <div class="top-bar">
         <a routerLink="/admin/orders" class="back-link">← Danh sách đơn hàng</a>
+        @if (data()?.order?.source === 'POS') { <a nz-button [routerLink]="['/admin/pos/orders', data()!.order.id, 'receipt']">Hóa đơn / QR thanh toán</a> }
       </div>
 
       @if (loading()) {
@@ -138,37 +139,6 @@ import { HttpErrorResponse } from '@angular/common/http';
               </div>
             </div>
 
-            <!-- Audit Events Timeline -->
-            <div class="card-section">
-              <h2>Lịch sử sự kiện đơn hàng (Audit Log)</h2>
-              <div class="events-timeline">
-                @for (ev of d.events; track ev.id) {
-                  <div class="event-item">
-                    <div class="event-dot"></div>
-                    <div class="event-content">
-                      <div class="event-meta">
-                        <strong>{{ ev.eventType }}</strong>
-                        <span class="time">{{ ev.createdAt | date: 'dd/MM/yyyy HH:mm:ss' }}</span>
-                      </div>
-                      <p class="event-desc">
-                        @if (ev.fromStatus) {
-                          Trạng thái: <code>{{ ev.fromStatus }}</code> → <code>{{ ev.toStatus }}</code>
-                        } @else {
-                          Trạng thái: <code>{{ ev.toStatus }}</code>
-                        }
-                        · Version: {{ ev.orderVersion }}
-                        @if (ev.paymentReference) {
-                          · Mã GD: <code>{{ ev.paymentReference }}</code>
-                        }
-                      </p>
-                      @if (ev.note) {
-                        <p class="event-note">Ghi chú: {{ ev.note }}</p>
-                      }
-                    </div>
-                  </div>
-                }
-              </div>
-            </div>
           </div>
 
           <aside class="grid-side">
@@ -400,53 +370,6 @@ import { HttpErrorResponse } from '@angular/common/http';
       font-size: 1.15rem;
       .total-vnd {
         color: #d4380d;
-      }
-    }
-    .events-timeline {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      padding-left: 0.5rem;
-    }
-    .event-item {
-      display: flex;
-      gap: 0.75rem;
-      position: relative;
-      .event-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #8c532b;
-        margin-top: 5px;
-        flex-shrink: 0;
-      }
-      .event-content {
-        flex: 1;
-        .event-meta {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.9rem;
-          .time {
-            color: #888;
-            font-size: 0.8rem;
-          }
-        }
-        .event-desc {
-          margin: 0.2rem 0;
-          font-size: 0.85rem;
-          color: #555;
-          code {
-            background: #f5f5f5;
-            padding: 1px 4px;
-            border-radius: 3px;
-          }
-        }
-        .event-note {
-          font-size: 0.8rem;
-          color: #777;
-          font-style: italic;
-          margin: 0;
-        }
       }
     }
     .meta-row {
