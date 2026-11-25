@@ -22,6 +22,7 @@ export class AdminLayout {
   readonly accountMenuOpen = signal(false);
   readonly loggingOut = signal(false);
   readonly links = [
+    { path: '/admin/dashboard', label: 'Thống kê doanh thu', icon: 'M3 3v18h18 M7 16v-4 M12 16V8 M17 16V5' },
     { path: '/admin/pos', label: 'Bán tại quầy', icon: 'M3 3h18v13H3z M8 21h8 M12 16v5 M7 7h10 M7 11h5' },
     { path: '/admin', label: 'Tổng quan', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z' },
     { path: '/admin/orders', label: 'Quản lý đơn hàng', icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },

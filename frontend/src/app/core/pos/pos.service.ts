@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { timeout } from 'rxjs';
+import { Observable, timeout } from 'rxjs';
 import { CreateOrderRequest, OrderResponse } from '../order/order.models';
 
 export interface TimelinePoint {
@@ -37,7 +37,7 @@ export class PosService {
   receipt(id: number) {
     return this.http.get<OrderResponse>(`/api/v1/admin/pos/orders/${id}/receipt`).pipe(timeout(12000));
   }
-  dashboard(from: string, to: string) {
+  dashboard(from: string, to: string): Observable<Dashboard> {
     return this.http.get<Dashboard>('/api/v1/admin/dashboard', { params: { from, to } }).pipe(timeout(12000));
   }
 }

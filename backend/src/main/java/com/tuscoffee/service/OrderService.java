@@ -277,6 +277,12 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> recentOrders(java.time.Instant start, java.time.Instant end) {
+        return batchMapOrderResponses(orderRepo.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
+                start, end, PageRequest.of(0, 10)));
+    }
+
+    @Transactional(readOnly = true)
     public OrderResponse getPosReceipt(long orderId) {
         Order order = orderRepo.findById(orderId)
                 .filter(o -> "POS".equals(o.getSource()))

@@ -33,6 +33,7 @@ import { RouterLink } from '@angular/router';
 })
 export class AdminOverview {
   readonly sections = [
+    { path: '/admin/dashboard', title: 'Doanh thu', description: 'Theo dõi đơn hàng và doanh thu theo ngày tại Việt Nam.', action: 'Xem thống kê', icon: 'M3 3v18h18 M7 16v-4 M12 16V8 M17 16V5' },
     { path: '/admin/pos', title: 'Bán tại quầy', description: 'Tạo đơn khách lẻ, thu tiền và in hóa đơn bán hàng.', action: 'Mở POS', icon: 'M3 3h18v13H3z M8 21h8 M12 16v5' },
     { path: '/admin/users', title: 'Tài khoản', description: 'Tra cứu khách hàng, kiểm tra trạng thái và quản lý quyền truy cập.', action: 'Quản lý tài khoản', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M16 3a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z' },
     { path: '/admin/products', title: 'Sản phẩm', description: 'Thêm món, cập nhật giá bán, hình ảnh và trạng thái trong thực đơn.', action: 'Quản lý sản phẩm', icon: 'm12 3 9 5-9 5-9-5 9-5Z M3 8v9l9 5 9-5V8 M12 13v9 M7.5 5.5l9 5' },
