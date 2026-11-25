@@ -1,12 +1,20 @@
-# TuCoffee — Spring Boot và Angular
+# TuCoffee
 
-Đăng nhập Google đã có phần tích hợp; cần cấu hình `GOOGLE_CLIENT_ID` trong `.env` và origin trên Google Cloud để sử dụng. Xem [hướng dẫn Google](docs/api/google-login.md). Đăng nhập email/mật khẩu tiếp tục hoạt động khi chưa bật Google.
+TuCoffee là ứng dụng bán cà phê trực tuyến và quản lý cửa hàng.
 
-Ứng dụng TuCoffee được phát triển từng giai đoạn. **Đã triển khai giai đoạn 1–4: nền tảng, tài khoản/phân quyền, thực đơn/quản lý sản phẩm và giỏ hàng/đơn hàng/thanh toán.**
+- **Khách hàng** có thể xem thực đơn, tìm món, đặt hàng, thanh toán bằng VietQR hoặc COD, theo dõi đơn và đánh giá món đã mua.
+- **Quản trị viên** có thể quản lý sản phẩm, danh mục, tài khoản và đơn hàng, kiểm duyệt đánh giá, bán tại quầy (POS), in hóa đơn và xem doanh thu.
 
-Có đăng ký, đăng nhập, khôi phục phiên khi tải lại trang, đăng xuất, đổi mật khẩu; ADMIN tìm kiếm và khóa/mở tài khoản. Khách xem/tìm/lọc thực đơn, chi tiết món, giỏ hàng, đặt hàng có Idempotency-Key chống trùng lặp, thanh toán chuyển khoản VietQR / COD, xem lịch sử và chi tiết đơn hàng; ADMIN quản lý danh mục, sản phẩm, ảnh, quản trị đơn hàng, chuyển trạng thái và xác nhận thanh toán. Tích điểm và khuyến mãi để sau.
+## Công nghệ
 
-## Công nghệ đã chọn
+![Java 21](https://img.shields.io/badge/Java-21-E76F00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Maven 3.10.0](https://img.shields.io/badge/Maven-3.10.0-C71A36?style=flat-square&logo=apachemaven&logoColor=white)
+![MySQL 8.0.46](https://img.shields.io/badge/MySQL-8.0.46-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Angular 22.2.3](https://img.shields.io/badge/Angular-22.2.3-DD0031?style=flat-square&logo=angular&logoColor=white)
+![NG-ZORRO 22.1.2](https://img.shields.io/badge/NG--ZORRO-22.1.2-0170FE?style=flat-square&logo=antdesign&logoColor=white)
+![RxJS 7.8](https://img.shields.io/badge/RxJS-7.8-B7178C?style=flat-square&logo=reactivex&logoColor=white)
+![Node.js 24.18.0](https://img.shields.io/badge/Node.js-24.18.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)
 
 | Thành phần | Phiên bản |
 |---|---|
@@ -23,11 +31,11 @@ Dependency frontend được khóa trong `frontend/package-lock.json`; backend d
 
 Frontend dùng NG-ZORRO trong các component standalone cho form, input, nút, thông báo, checkbox và bộ lọc tài khoản. Chỉ nạp stylesheet của các thành phần đang dùng, dùng tông nâu espresso, caramel và kem theo ảnh tham chiếu. Trang quản trị dùng RxJS debounce 300ms cho bộ lọc, `switchMap` để hủy truy vấn danh sách cũ, `exhaustMap` để chặn thao tác khóa/mở trùng và `takeUntilDestroyed` để dọn subscription khi rời trang.
 
-## Cấu trúc hiện tại
+## Cấu trúc dự án
 
 ```text
 backend/                     Spring Boot monolith, Spring Data JPA, MySQL/Flyway
-frontend/                    Angular standalone, auth, hồ sơ, menu và quản trị tài khoản/catalog
+frontend/                    Angular standalone, tài khoản, thực đơn, đặt hàng, POS và quản trị
 scripts/                     Chuẩn bị môi trường và chạy E2E với MySQL native
 docs/api/openapi.yaml         Hợp đồng API đã có
 docs/design-guidelines.md     Quy ước giao diện
@@ -106,7 +114,7 @@ Set-Location backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Flyway tự chạy V1 và V2 theo thứ tự, lưu lịch sử trong `flyway_schema_history`. V2 bổ sung tài khoản, phiên đăng nhập, lịch sử refresh và giới hạn login; không sửa baseline. Hibernate chỉ validate entity với schema, không tự tạo/xóa bảng. Các repository dùng JPA; khóa `PESSIMISTIC_WRITE` trên hàng điều phối và transaction kiểm soát rotation, thu hồi phiên và thao tác quản trị đồng thời.
+Flyway áp dụng các migration theo thứ tự và lưu lịch sử trong `flyway_schema_history`. Hibernate kiểm tra entity khớp với schema.
 
 Kiểm tra từ terminal khác:
 
@@ -126,7 +134,9 @@ npm start
 
 - Trang khởi đầu: [http://localhost:4200](http://localhost:4200).
 - Trang phát triển kiểm tra kết nối: [http://localhost:4200/dev/status](http://localhost:4200/dev/status).
-- Tài khoản: `/register`, `/login`, `/profile`; thực đơn: `/menu`, `/products/:id`; giỏ hàng & đơn hàng: `/cart`, `/checkout`, `/orders`, `/orders/:id`; quản trị: `/admin/users`, `/admin/products`, `/admin/categories`, `/admin/orders`, `/admin/orders/:id`.
+- Tài khoản và khôi phục mật khẩu: `/register`, `/login`, `/profile`, `/forgot-password`.
+- Thực đơn và đặt hàng: `/menu`, `/products/:id`, `/cart`, `/checkout`, `/orders`.
+- Quản trị: `/admin`, với các trang sản phẩm, danh mục, tài khoản, đơn hàng, đánh giá, POS và doanh thu.
 - Angular gọi `/api/v1/health` qua dev proxy; URL backend không nằm trong component.
 - Nếu đổi cổng backend, cập nhật target trong `frontend/src/proxy.conf.json` rồi khởi động lại dev server.
 
@@ -180,7 +190,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-identity-e2
 
 Script E2E tắt Turnstile riêng cho tiến trình kiểm thử, quản lý frontend/backend riêng và kiểm tra catalog/ảnh sau restart cùng seed lần hai. Có thể thêm `-PlaywrightArgs '--workers=2'` để giới hạn tải trên máy local.
 
-Workflow `.github/workflows/ci.yml` chuẩn bị kiểm tra backend với MySQL, frontend và smoke test. Workflow chỉ thực sự chạy trên GitHub sau khi có repository/commit được đẩy lên; hiện chưa cấu hình remote hoặc push tự động.
+Workflow `.github/workflows/ci.yml` cấu hình kiểm tra backend với MySQL, unit test và build frontend, cùng kiểm thử trình duyệt. Xem kết quả trên GitHub Actions theo commit cần kiểm tra.
 
 ## Tạo tài khoản quản trị
 
@@ -199,7 +209,10 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 - Logout thu hồi phiên hiện tại; đổi mật khẩu thu hồi mọi phiên cũ và cấp phiên mới cho trình duyệt hiện tại. Khóa tài khoản thu hồi toàn bộ phiên; mở khóa cần đăng nhập lại.
 - Backend kiểm tra trạng thái tài khoản, quyền và phiên trong database; guard Angular chỉ hỗ trợ điều hướng.
 - Mọi API ghi cần CSRF; mặc định cookie `Secure=true`, chỉ profile `local` dùng HTTP. Triển khai cần HTTPS, khóa riêng và allowlist origin phù hợp.
-- Các thay đổi identity dùng một dòng khóa phối hợp trong MySQL, phù hợp quy mô hiện tại. Lịch dọn bản ghi phiên/rate limit hết hạn chưa tự động hóa.
+## Đăng nhập Google và khôi phục mật khẩu
+
+- Để bật đăng nhập Google, đặt `GOOGLE_CLIENT_ID` trong `.env` và thêm origin của frontend trên Google Cloud. Xem [hướng dẫn cấu hình Google](docs/api/google-login.md).
+- Để gửi OTP khôi phục mật khẩu qua email, điền cấu hình `SMTP_*` theo [tệp mẫu môi trường](.env.example) và khởi động lại backend.
 
 ## Cloudflare Turnstile
 
@@ -207,4 +220,4 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 
 ## Thiết kế database toàn dự án
 
-Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). V4–V7 tạo schema catalog, orders/payments/POS, reviews/reset và knowledge RAG. Catalog đã có API/UI và đã nhập local 18 sản phẩm/5 danh mục/18 ảnh; importer mặc định tắt, chỉ chạy khi bật tường minh ở profile local. Schema các phần còn lại chưa đồng nghĩa API/UI đã triển khai.
+Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập dữ liệu mẫu cho thực đơn mặc định tắt và chỉ chạy khi được bật trong profile `local`.
