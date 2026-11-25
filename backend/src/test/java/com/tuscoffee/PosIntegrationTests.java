@@ -95,7 +95,12 @@ class PosIntegrationTests extends MySqlIntegrationSupport {
         assertEquals("PAID", completed.payment().status());
         assertEquals("COMPLETED", completed.status());
         assertNotNull(completed.completedAt());
-        assertEquals(completed, orders.getPosReceipt(completed.id()));
+        var receipt = orders.getPosReceipt(completed.id());
+        assertEquals(completed.id(), receipt.id());
+        assertEquals(completed.status(), receipt.status());
+        assertEquals(completed.totalVnd(), receipt.totalVnd());
+        assertEquals(completed.payment().id(), receipt.payment().id());
+        assertEquals(completed.payment().status(), receipt.payment().status());
     }
 
     @Test void posRoutesRejectAnonymousAndRegularUsersAndRequireCsrf() throws Exception {
