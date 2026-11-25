@@ -215,6 +215,12 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> recentOrders(java.time.Instant start, java.time.Instant end) {
+        return batchMapOrderResponses(orderRepo.findByCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDescIdDesc(
+                start, end, PageRequest.of(0, 10)));
+    }
+
+    @Transactional(readOnly = true)
     public OrderPageResponse getMyOrders(long buyerId, int page, int size) {
         int boundedPage = Math.max(0, Math.min(page, 1_000_000));
         int boundedSize = Math.max(1, Math.min(size, 100));
