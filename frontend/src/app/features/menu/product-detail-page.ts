@@ -9,9 +9,10 @@ import { CatalogService } from '../../core/catalog/catalog.service';
 import { CartService } from '../../core/cart/cart.service';
 import { Product } from '../../core/catalog/catalog.models';
 import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
+import { ProductReviews } from '../reviews/product-reviews';
 @Component({
   selector: 'app-product-detail-page',
-  imports: [RouterLink, NzButtonModule, NzAlertModule, ProductImage, VndPipe],
+  imports: [RouterLink, NzButtonModule, NzAlertModule, ProductImage, VndPipe, ProductReviews],
   template: `<section class="detail-page">
     <a class="back" routerLink="/menu">← Thực đơn</a>
     @if (busy()) {
@@ -84,6 +85,7 @@ import { ProductImage, VndPipe } from '../../core/catalog/catalog-ui';
           </div>
         </div>
       </div>
+      <app-product-reviews [productId]="item.id" />
     }
   </section>`,
   styles: `

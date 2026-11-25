@@ -42,6 +42,20 @@ describe('authInterceptor', () => {
     await result;
   });
 
+  it('authenticates own reviews while keeping public reviews free of credentials', async () => {
+    for (const [url, expected] of [
+      ['/api/v1/products/12/reviews/mine', true],
+      ['/api/v1/products/12/reviews', false],
+      ['https://example.com/api/v1/products/12/reviews/mine', false],
+    ] as const) {
+      const result = firstValueFrom(client.get(url));
+      const request = http.expectOne(url);
+      expect(request.request.headers.has('Authorization')).toBe(expected);
+      request.flush({});
+      await result;
+    }
+  });
+
   it('never adds a bearer to third-party, public health or authentication requests', async () => {
     for (const url of [
       'https://example.com/api/v1/users/me',
