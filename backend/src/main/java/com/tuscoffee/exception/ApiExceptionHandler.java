@@ -40,6 +40,10 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             org.springframework.web.context.request.WebRequest request) {
         String path = request instanceof org.springframework.web.context.request.ServletWebRequest servlet
                 ? servlet.getRequest().getRequestURI() : "/api/v1";
+        if (path.startsWith("/api/v1/admin/knowledge/documents")) {
+            return ResponseEntity.status(413).body(ApiErrors.problem(413, "DOCUMENT_TOO_LARGE",
+                    "Tài liệu không được vượt quá 10 MiB.", path));
+        }
         return ResponseEntity.status(413).body(ApiErrors.problem(413,"IMAGE_TOO_LARGE","Ảnh không được vượt quá 5 MB.",path));
     }
 

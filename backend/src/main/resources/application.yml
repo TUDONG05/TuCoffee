@@ -34,12 +34,15 @@ spring:
     clean-disabled: true
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 10MB
+      max-request-size: 11MB
   mvc:
     log-request-details: false
     problemdetails:
       enabled: true
+
+knowledge:
+  storage-root: ${RAG_STORAGE_ROOT:./data/knowledge}
 
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}

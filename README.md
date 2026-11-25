@@ -218,6 +218,14 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 
 Đã tích hợp xác minh chống bot cho email login/register; mặc định tắt khi chưa cấu hình. Xem [hướng dẫn cấu hình và kiểm chứng](docs/api/turnstile.md). Bật TURNSTILE_ENABLED, điền Site Key/Secret Key và hostnames trong `.env`, rồi restart backend.
 
+## Quản lý tài liệu tri thức
+
+Đăng nhập bằng tài khoản ADMIN và mở `/admin/knowledge`. Có thể tải nhiều tệp TXT UTF-8, Markdown, PDF có văn bản hoặc Word (.docx), tối đa 10 MiB mỗi tệp. Ứng dụng lấy tiêu đề từ tên tệp và tự xếp hàng lập chỉ mục. Dùng cột **Thao tác** để xem trước nội dung đã lập chỉ mục, thử lại tài liệu lỗi hoặc xóa tài liệu.
+
+Đặt `RAG_STORAGE_ROOT` tới thư mục riêng ngoài web root. Để bắt đầu lập chỉ mục, cấu hình endpoint embedding tương thích OpenAI qua `RAG_EMBEDDING_URL`, model, số chiều và khóa nếu nhà cung cấp yêu cầu. Sau đó đặt `RAG_WORKER_ENABLED=true` và khởi động lại backend. Chỉ nhập tài liệu được phép gửi tới nhà cung cấp đã cấu hình. Xem [các biến RAG](.env.example).
+
+Khi cần tạm dừng xử lý, đặt `RAG_WORKER_ENABLED=false` và khởi động lại backend. Sao lưu schema MySQL và toàn bộ thư mục `RAG_STORAGE_ROOT` cùng thời điểm khi backend đã dừng để giữ file gốc khớp với các phiên bản trong DB. Khôi phục cả hai trước khi khởi động lại.
+
 ## Thiết kế database toàn dự án
 
 Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập dữ liệu mẫu cho thực đơn mặc định tắt và chỉ chạy khi được bật trong profile `local`.
