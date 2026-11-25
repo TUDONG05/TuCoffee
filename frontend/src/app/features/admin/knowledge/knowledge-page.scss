@@ -1,0 +1,62 @@
+:host { display: block; }
+.knowledge-panel { min-width: 0; padding: 1rem; margin-block: 1rem; background: #fff; border: 1px solid #e9dfd2; border-radius: .75rem; }
+.controls, .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: .75rem;
+}
+.controls label { display: grid; gap: .25rem; max-width: 100%; }
+.controls input, .controls select { max-width: 100%; }
+.document-filters > label { flex: 0 1 13rem; }
+.document-filters > label:has(select) { flex-basis: 10rem; }
+.document-pagination { justify-content: space-between; }
+.document-filters label :is(input, select), .filter-actions button, .upload-trigger { height: 2.5rem; }
+.filter-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+  width: min(100%, 11.5rem);
+}
+.filter-actions button { width: 100%; padding-inline: .25rem; }
+.upload-trigger { width: 5.5rem; margin-inline-start: auto; }
+@media (max-width: 600px) {
+  .document-filters > label, .document-filters > label:has(select) { flex: 1 1 8rem; }
+  .filter-actions { flex: 1 1 10rem; }
+}
+.actions { align-items: center; margin-block: .75rem; }
+.actions h2 { margin: 0; }
+.document-table { margin-top: 1rem; overflow-x: auto; }
+.document-table nz-table { display: block; min-width: 36rem; }
+.updated-at { white-space: nowrap; }
+.document-name { overflow-wrap: anywhere; }
+.row-actions { white-space: nowrap; }
+.row-actions button { padding-inline: .4rem; }
+.preview-excerpt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.error { color: #9d241c; }
+.upload-form { display: grid; gap: .875rem; }
+.upload-dropzone {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: .5rem;
+  padding: 1.75rem 1rem;
+  border: 2px dashed #c9def8;
+  border-radius: .75rem;
+  background: #edf5ff;
+  color: #173564;
+  text-align: center;
+  cursor: pointer;
+}
+.upload-dropzone:hover, .upload-dropzone.drag-active, .upload-dropzone:focus-within {
+  border-color: #1760cf;
+  background: #e2efff;
+}
+.upload-dropzone:focus-within { outline: 2px solid #1760cf; outline-offset: 2px; }
+.upload-dropzone strong { font-size: 1rem; }
+.upload-dropzone strong span, .upload-cloud { color: #0756cf; }
+.upload-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.upload-file-list { max-height: 9rem; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.upload-file-list li { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.upload-file-list li span { min-width: 0; overflow-wrap: anywhere; }
+.upload-actions { display: flex; justify-content: flex-end; gap: .5rem; }

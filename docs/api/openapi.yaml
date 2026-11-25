@@ -1489,7 +1489,375 @@ paths:
                 format: binary
         '404':
           description: Không tìm thấy
+  /api/v1/admin/knowledge/documents:
+    get:
+      operationId: listKnowledgeDocuments
+      summary: Liệt kê tài liệu tri thức
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+          maxLength: 200
+      - name: page
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: size
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      - name: enabled
+        in: query
+        schema:
+          type: boolean
+      - name: format
+        in: query
+        description: Định dạng của phiên bản mới nhất.
+        schema:
+          type: string
+          enum: [txt, markdown, pdf, docx]
+      responses:
+        '200':
+          description: Danh sách tài liệu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgePage'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+    post:
+      operationId: uploadKnowledgeDocument
+      summary: Tải tài liệu tri thức lên
+      security:
+      - bearerAuth: []
+      parameters:
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Tệp TXT UTF-8, Markdown, PDF có văn bản hoặc Word (.docx), tối đa 10 MiB. Tiêu đề lấy từ tên tệp gốc.
+      responses:
+        '202':
+          description: Đã đưa phiên bản vào hàng đợi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeQueued'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '413':
+          description: Tệp vượt giới hạn
+        '415':
+          description: Định dạng tệp không được hỗ trợ
+        '503':
+          description: Không thể lưu tệp
+  /api/v1/admin/knowledge/documents/{id}:
+    get:
+      operationId: getKnowledgeDocument
+      summary: Xem tài liệu và danh sách phiên bản
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      responses:
+        '200':
+          description: Chi tiết tài liệu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeDocument'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+    delete:
+      operationId: deleteKnowledgeDocument
+      summary: Xóa mềm và tắt tài liệu
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      responses:
+        '204':
+          description: Đã xóa mềm tài liệu
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+        '409':
+          description: Xung đột trạng thái hoặc phiên bản tài liệu
+  /api/v1/admin/knowledge/documents/{id}/preview:
+    get:
+      summary: Xem trước nội dung đã lập chỉ mục của phiên bản hiện hành
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Tối đa tám đoạn đầu. Danh sách rỗng nếu chưa lập chỉ mục.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [excerpts, truncated]
+                properties:
+                  excerpts:
+                    type: array
+                    items:
+                      type: string
+                  truncated:
+                    type: boolean
+        '404':
+          description: Không tìm thấy tài liệu
+  /api/v1/admin/knowledge/documents/{id}/versions:
+    post:
+      operationId: replaceKnowledgeDocument
+      summary: Tải phiên bản thay thế
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Tệp TXT UTF-8, Markdown, PDF có văn bản hoặc Word (.docx), tối đa 10 MiB.
+      responses:
+        '202':
+          description: Đã đưa phiên bản vào hàng đợi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeQueued'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+        '409':
+          description: Xung đột trạng thái hoặc phiên bản tài liệu
+        '413':
+          description: Tệp vượt giới hạn
+        '415':
+          description: Định dạng tệp không được hỗ trợ
+        '503':
+          description: Không thể lưu tệp
+  /api/v1/admin/knowledge/documents/{id}/reindex:
+    post:
+      operationId: reindexKnowledgeDocument
+      summary: Lập chỉ mục lại từ bản đang dùng
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      responses:
+        '202':
+          description: Đã đưa phiên bản vào hàng đợi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeQueued'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+        '409':
+          description: Xung đột trạng thái hoặc phiên bản tài liệu
+  /api/v1/admin/knowledge/documents/{id}/versions/{versionId}/retry:
+    post:
+      operationId: retryKnowledgeVersion
+      summary: Thử lại phiên bản lỗi mới nhất
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - name: version
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      responses:
+        '202':
+          description: Đã đưa phiên bản vào hàng đợi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeQueued'
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+        '409':
+          description: Xung đột trạng thái hoặc phiên bản tài liệu
+  /api/v1/admin/knowledge/documents/{id}/enabled:
+    patch:
+      operationId: setKnowledgeDocumentEnabled
+      summary: Bật hoặc tắt tài liệu
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+      - $ref: '#/components/parameters/KnowledgeCsrf'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, version]
+              properties:
+                enabled:
+                  type: boolean
+                version:
+                  type: integer
+                  format: int64
+                  minimum: 0
+      responses:
+        '204':
+          description: Đã cập nhật tài liệu
+        '401':
+          description: Chưa đăng nhập
+        '403':
+          description: Thiếu quyền ADMIN hoặc CSRF không hợp lệ
+        '400':
+          description: Yêu cầu không hợp lệ
+        '404':
+          description: Tài liệu không tồn tại
+        '409':
+          description: Xung đột trạng thái hoặc phiên bản tài liệu
 components:
+  parameters:
+    KnowledgeCsrf:
+      name: X-XSRF-TOKEN
+      in: header
+      required: true
+      description: Giá trị từ GET /api/v1/auth/csrf cùng cookie XSRF-TOKEN của phiên.
+      schema:
+        type: string
   securitySchemes:
     bearerAuth:
       type: http
@@ -1500,6 +1868,89 @@ components:
       in: cookie
       name: tucoffee_refresh
   schemas:
+    KnowledgeRevision:
+      type: object
+      required: [id, revision, status, originalFilename]
+      properties:
+        id:
+          type: integer
+          format: int64
+        revision:
+          type: integer
+        status:
+          type: string
+          enum: [UPLOADED, PROCESSING, READY, FAILED]
+        errorCode:
+          type: string
+          nullable: true
+        originalFilename:
+          type: string
+    KnowledgeDocument:
+      type: object
+      required: [id, title, enabled, version, chunkCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        enabled:
+          type: boolean
+        version:
+          type: integer
+          format: int64
+        activeVersionId:
+          type: integer
+          format: int64
+          nullable: true
+        chunkCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Số đoạn đã lập chỉ mục của phiên bản hiện hành.
+        createdAt:
+          type: string
+          format: date-time
+          description: Thời điểm tải tài liệu lên lần đầu.
+        updatedAt:
+          type: string
+          format: date-time
+        latestVersion:
+          $ref: '#/components/schemas/KnowledgeRevision'
+        versions:
+          type: array
+          nullable: true
+          description: Lịch sử phiên bản khi xem chi tiết.
+          items:
+            $ref: '#/components/schemas/KnowledgeRevision'
+    KnowledgePage:
+      type: object
+      required: [items, total, page, size]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/KnowledgeDocument'
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        size:
+          type: integer
+    KnowledgeQueued:
+      type: object
+      required: [documentId, versionId, jobId]
+      properties:
+        documentId:
+          type: integer
+          format: int64
+        versionId:
+          type: integer
+          format: int64
+        jobId:
+          type: integer
+          format: int64
     Health:
       type: object
       additionalProperties: false
