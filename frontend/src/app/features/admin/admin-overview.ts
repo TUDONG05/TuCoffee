@@ -33,6 +33,7 @@ import { RouterLink } from '@angular/router';
 })
 export class AdminOverview {
   readonly sections = [
+    { path: '/admin/reviews', title: 'Đánh giá', description: 'Xem phản hồi khách hàng và quản lý hiển thị đánh giá.', action: 'Quản lý đánh giá', icon: 'm12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1Z' },
     { path: '/admin/users', title: 'Tài khoản', description: 'Tra cứu khách hàng, kiểm tra trạng thái và quản lý quyền truy cập.', action: 'Quản lý tài khoản', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M16 3a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z' },
     { path: '/admin/products', title: 'Sản phẩm', description: 'Thêm món, cập nhật giá bán, hình ảnh và trạng thái trong thực đơn.', action: 'Quản lý sản phẩm', icon: 'm12 3 9 5-9 5-9-5 9-5Z M3 8v9l9 5 9-5V8 M12 13v9 M7.5 5.5l9 5' },
     { path: '/admin/categories', title: 'Danh mục', description: 'Sắp xếp các nhóm món và quản lý hiển thị danh mục trên cửa hàng.', action: 'Quản lý danh mục', icon: 'M3 7h18 M3 12h18 M3 17h18 M7 4v16' },

@@ -36,6 +36,7 @@ export const routes: Routes = [
     canActivateChild: [adminGuard],
     loadComponent: () => import('./features/admin/admin-layout').then((m) => m.AdminLayout),
     children: [
+      { path: 'reviews', title: 'Quản lý đánh giá | Tu’s Coffee', loadComponent: () => import('./features/admin/reviews/admin-reviews-page').then(m => m.AdminReviewsPage) },
       { path: '', pathMatch: 'full', title: 'Tổng quan quản trị | Tu’s Coffee', loadComponent: () => import('./features/admin/admin-overview').then((m) => m.AdminOverview) },
       { path: 'orders', title: 'Quản lý đơn hàng | Tu’s Coffee', loadComponent: () => import('./features/admin/orders/admin-orders-page').then((m) => m.AdminOrdersPage) },
       { path: 'orders/:id', title: 'Chi tiết đơn hàng | Tu’s Coffee', loadComponent: () => import('./features/admin/orders/admin-order-detail-page').then((m) => m.AdminOrderDetailPage) },
