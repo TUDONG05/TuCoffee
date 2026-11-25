@@ -51,7 +51,22 @@ class IdentityHttpTests extends MySqlIntegrationSupport {
                         "http://127.0.0.1:"
                                 + environment.getProperty("local.server.port")
                                 + "/api/v1/");
-        // Only this class uses identity tables; the fixture points to its generated test schema.
+        // Integration test classes share one generated schema per JVM, so clear every row that
+        // transitively references users before removing the identities this class owns.
+        jdbc.update("DELETE FROM knowledge_chunks");
+        jdbc.update("DELETE FROM knowledge_audit");
+        jdbc.update("DELETE FROM knowledge_ingestion_jobs");
+        jdbc.update("UPDATE knowledge_documents SET active_version_id = NULL");
+        jdbc.update("DELETE FROM knowledge_versions");
+        jdbc.update("DELETE FROM knowledge_documents");
+        jdbc.update("DELETE FROM review_moderation_events");
+        jdbc.update("DELETE FROM product_reviews");
+        jdbc.update("DELETE FROM password_reset_challenges");
+        jdbc.update("DELETE FROM order_events");
+        jdbc.update("DELETE FROM payments");
+        jdbc.update("DELETE FROM order_items");
+        jdbc.update("DELETE FROM order_requests");
+        jdbc.update("DELETE FROM orders");
         jdbc.update("DELETE FROM auth_token_history");
         jdbc.update("DELETE FROM auth_sessions");
         jdbc.update("DELETE FROM auth_rate_limits");
