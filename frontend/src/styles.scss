@@ -553,3 +553,139 @@ h6,
 .ant-pagination-item-active { border-color:var(--brand); }
 .ant-pagination-item-active a { color:var(--brand); }
 .ant-pagination-item:hover a { color:var(--brand); }
+
+.admin-shell .admin-content h1:not([id='receipt-heading']) {
+  font-size: clamp(1.75rem, 4vw, 2.6rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+@media print {
+  @page {
+    size: auto;
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* 1. Hide all irrelevant navigation, controls, buttons, footers */
+  .admin-sidebar,
+  .admin-topbar,
+  .mobile-menu,
+  .site-header,
+  .site-footer,
+  .skip-link,
+  .no-print,
+  .controls,
+  .pos-grid,
+  .pos-fast-actions,
+  .secondary-submit,
+  nz-alert,
+  button,
+  .ant-modal-mask,
+  .ant-modal-header,
+  .ant-modal-footer,
+  .ant-modal-close {
+    display: none !important;
+  }
+
+  /* 2. Flatten shells & containers to avoid multi-page ghost heights */
+  .admin-shell,
+  .admin-workspace,
+  .admin-content,
+  main,
+  app-pos-page,
+  app-receipt-page {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  /* 3. Strip CDK overlay & Ant Modal wrappers, override inline styles so it spans 100% */
+  .cdk-overlay-container,
+  .cdk-global-overlay-wrapper,
+  .ant-modal-root,
+  .ant-modal-wrap {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    transform: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ant-modal {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    transform: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .ant-modal-content {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+  }
+
+  .ant-modal-body {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+  }
+
+  /* 4. Center and format the printed receipt sheet right in the middle of the paper */
+  .receipt,
+  .receipt-preview {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 520px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: #000000 !important;
+    border: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  tr,
+  .receipt-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
