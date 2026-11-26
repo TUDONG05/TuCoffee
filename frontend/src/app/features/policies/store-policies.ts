@@ -101,12 +101,15 @@ export class StorePoliciesPage {
       </form>
       @if (message() && !editorOpen()) { <p role="status">{{ message() }}</p> }
       <nz-table #table [nzData]="filtered()" [nzLoading]="busy() && !editorOpen()" [nzPageSize]="20"
-        [nzPageIndex]="page()" (nzPageIndexChange)="page.set($event)" [nzScroll]="{ x: '42rem' }"
+        [nzPageIndex]="page()" (nzPageIndexChange)="page.set($event)" [nzScroll]="{ x: '48rem' }"
         nzNoResult="Không tìm thấy chính sách">
-        <thead><tr><th>Tiêu đề</th><th>Đường dẫn</th><th>Trạng thái</th><th>Cập nhật</th><th>Thao tác</th></tr></thead>
+        <thead><tr><th nzWidth="7rem">Hình nền</th><th>Tiêu đề</th><th>Đường dẫn</th><th>Trạng thái</th><th>Cập nhật</th><th>Thao tác</th></tr></thead>
         <tbody>
           @for (policy of table.data; track policy.id) {
             <tr>
+              <td><img class="table-cover" [src]="policy.imageUrl || '/banner.png'"
+                [alt]="policy.imageUrl ? 'Ảnh bìa ' + policy.title : 'Ảnh bìa mặc định'"
+                width="88" height="44" loading="lazy"></td>
               <td>{{ policy.title }}</td>
               <td>{{ policy.slug }}</td>
               <td><span class="badge" [class.published]="policy.published">{{ policy.published ? 'Đang công khai' : 'Bản nháp' }}</span></td>
@@ -163,6 +166,7 @@ export class StorePoliciesPage {
     .actions { display: flex; flex-wrap: wrap; justify-content: end; gap: .5rem; }
     .cover-editor { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin-bottom: 1rem; }
     .cover-editor img { object-fit: cover; border-radius: .4rem; }
+    .table-cover { display: block; object-fit: cover; background: #f2e7db; }
     .cover-editor label { flex: 1 1 12rem; }
   `,
 })
