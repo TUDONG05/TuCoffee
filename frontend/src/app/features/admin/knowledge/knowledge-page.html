@@ -52,7 +52,12 @@
             <tr>
               <td class="document-name">{{ doc.title }}</td>
               <td>{{ formatLabel(doc.latestVersion.originalFilename) }}</td>
-              <td><nz-tag [nzColor]="doc.enabled ? 'success' : 'default'">{{ doc.enabled ? 'Đang dùng' : 'Đã tắt' }}</nz-tag></td>
+              <td>
+                <nz-tag [nzColor]="doc.enabled ? 'success' : 'default'">{{ doc.enabled ? 'Đang dùng' : 'Đã tắt' }}</nz-tag>
+                <button nz-button nzType="link" type="button"
+                  [disabled]="saving() || (!doc.enabled && doc.activeVersionId === null)"
+                  (click)="toggleSource(doc)">{{ doc.enabled ? 'Tắt nguồn' : 'Bật nguồn' }}</button>
+              </td>
               <td><nz-tag [nzColor]="doc.latestVersion.status === 'READY' ? 'success' : doc.latestVersion.status === 'FAILED' ? 'error' : 'processing'">
                 {{ statusLabel(doc.latestVersion.status) }}
               </nz-tag></td>
@@ -128,6 +133,13 @@
       }
       @if (content.truncated) { <p>Chỉ hiển thị các đoạn đầu của tài liệu.</p> }
     }
+  </ng-container>
+</nz-modal>
+
+<nz-modal [nzVisible]="publishTarget() !== null" nzTitle="Bật nguồn cho chatbot"
+  nzOkText="Bật nguồn" nzCancelText="Hủy" (nzOnCancel)="publishTarget.set(null)" (nzOnOk)="confirmPublish()">
+  <ng-container *nzModalContent>
+    <p>Xác nhận tài liệu “{{ publishTarget()?.title }}” được phép dùng để trả lời khách truy cập.</p>
   </ng-container>
 </nz-modal>
 

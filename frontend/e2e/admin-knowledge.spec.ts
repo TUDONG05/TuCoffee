@@ -16,6 +16,7 @@ test('admin uploads multiple documents and previews one after indexing', async (
 
   const api = '/api/v1/admin/knowledge/documents';
   let uploaded = false;
+  let enabled = false;
   const uploadedFiles: string[] = [];
   let listReads = 0;
   await page.route(`**${api}**`, async route => {
@@ -36,10 +37,16 @@ test('admin uploads multiple documents and previews one after indexing', async (
       await route.fulfill({ json: { excerpts: ['Cà phê sữa'], truncated: false } });
       return;
     }
+    if (path === `${api}/7/enabled` && request.method() === 'PATCH') {
+      expect(request.postDataJSON()).toEqual({ enabled: true, version: 1 });
+      enabled = true;
+      await route.fulfill({ status: 204 });
+      return;
+    }
     const ready = uploaded && ++listReads > 1;
     const latestVersion = { id: 8, revision: 1, status: ready ? 'READY' : 'UPLOADED',
       originalFilename: 'menu.txt', errorCode: null };
-    const doc = { id: 7, title: 'menu.txt', version: ready ? 1 : 0, enabled: false, chunkCount: ready ? 3 : 0,
+    const doc = { id: 7, title: 'menu.txt', version: ready ? 1 : 0, enabled, chunkCount: ready ? 3 : 0,
       activeVersionId: ready ? 8 : null, latestVersion,
       createdAt: '2026-11-23T12:00:00Z', updatedAt: '2026-11-25T12:00:00Z' };
     await route.fulfill({ json: path === api
@@ -77,6 +84,9 @@ test('admin uploads multiple documents and previews one after indexing', async (
   await expect(page.getByRole('dialog').getByText('Cà phê sữa')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Bật nguồn', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Bật nguồn', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tắt nguồn', exact: true })).toBeVisible();
   const secondPage = page.waitForRequest(request => new URL(request.url()).searchParams.get('page') === '1');
   await page.getByRole('navigation', { name: 'Phân trang tài liệu' }).getByText('2', { exact: true }).click();
   await secondPage;

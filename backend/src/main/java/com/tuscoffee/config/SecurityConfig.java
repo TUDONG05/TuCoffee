@@ -80,10 +80,11 @@ public class SecurityConfig {
                                         .requestMatchers(org.springframework.http.HttpMethod.GET,
                                                 "/api/v1/categories", "/api/v1/products", "/api/v1/products/**",
                                                 "/api/v1/catalog/images/**",
+                                                "/api/v1/chat/config",
                                                 "/api/v1/orders/vnpay-ipn",
                                                 "/api/v1/orders/vnpay-return").permitAll()
                                         .requestMatchers(org.springframework.http.HttpMethod.POST,
-                                                "/api/v1/sepay/webhook").permitAll()
+                                                "/api/v1/sepay/webhook", "/api/v1/chat/messages").permitAll()
                                         .requestMatchers("/api/v1/admin/**")
                                         .hasRole("ADMIN")
                                         .requestMatchers("/api/v1/users/**", "/api/v1/orders", "/api/v1/orders/**")

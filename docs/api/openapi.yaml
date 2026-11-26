@@ -1849,6 +1849,78 @@ paths:
           description: Tài liệu không tồn tại
         '409':
           description: Xung đột trạng thái hoặc phiên bản tài liệu
+  /api/v1/chat/config:
+    get:
+      operationId: getChatConfig
+      summary: Cho biết trợ lý tư vấn có đang bật hay không
+      security: []
+      responses:
+        '200':
+          description: Cấu hình công khai, không lưu cache
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled]
+                properties:
+                  enabled:
+                    type: boolean
+  /api/v1/chat/messages:
+    post:
+      operationId: askChat
+      summary: Hỏi trợ lý TuCoffee về món và thông tin cửa hàng
+      description: Khách và người dùng đăng nhập đều gọi được. Context tối đa 6 lượt với tổng 6000 ký tự.
+      security:
+      - {}
+      - bearerAuth: []
+      parameters:
+      - name: X-XSRF-TOKEN
+        in: header
+        required: true
+        description: Lấy từ GET /api/v1/auth/csrf và gửi cùng cookie XSRF-TOKEN của phiên.
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                context:
+                  type: array
+                  maxItems: 6
+                  items:
+                    type: object
+                    required: [role, content]
+                    properties:
+                      role:
+                        type: string
+                        enum: [user, assistant]
+                      content:
+                        type: string
+                        minLength: 1
+                        maxLength: 2000
+      responses:
+        '200':
+          description: Câu trả lời và các nguồn công khai, không lưu cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatAnswer'
+        '400':
+          description: CHAT_INVALID_INPUT
+        '403':
+          description: CSRF_INVALID hoặc ORIGIN_FORBIDDEN
+        '429':
+          description: CHAT_RATE_LIMITED, CHAT_DAILY_LIMIT hoặc CHAT_BUSY
+        '503':
+          description: CHAT_DISABLED hoặc CHAT_UNAVAILABLE
 components:
   parameters:
     KnowledgeCsrf:
@@ -1868,6 +1940,48 @@ components:
       in: cookie
       name: tucoffee_refresh
   schemas:
+    ChatAnswer:
+      type: object
+      required: [answer, citations, products, insufficientData]
+      properties:
+        answer:
+          type: string
+        insufficientData:
+          type: boolean
+        citations:
+          type: array
+          items:
+            type: object
+            required: [documentId, title]
+            properties:
+              documentId:
+                type: integer
+                format: int64
+              title:
+                type: string
+              page:
+                type: integer
+                nullable: true
+              section:
+                type: string
+                nullable: true
+        products:
+          type: array
+          items:
+            type: object
+            required: [id, name, priceVnd]
+            properties:
+              id:
+                type: integer
+                format: int64
+              name:
+                type: string
+              priceVnd:
+                type: integer
+                format: int64
+              imageUrl:
+                type: string
+                nullable: true
     KnowledgeRevision:
       type: object
       required: [id, revision, status, originalFilename]
