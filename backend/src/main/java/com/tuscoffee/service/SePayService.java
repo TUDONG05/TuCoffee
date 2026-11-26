@@ -68,6 +68,9 @@ public class SePayService {
             log.warn("SePay webhook order not found: {}", orderCode);
             return new SePayWebhookResponse(false, "Order not found: " + orderCode);
         }
+        if ("CANCELLED".equals(order.getStatus())) {
+            return new SePayWebhookResponse(false, "Order is cancelled; payment requires reconciliation.");
+        }
 
         Payment payment = paymentRepo.findByOrderId(order.getId()).orElse(null);
         if (payment == null) {

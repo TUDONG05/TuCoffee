@@ -11,6 +11,8 @@ export interface CreateOrderRequest {
   customerAddress?: string | null;
   note?: string | null;
   paymentMethod: 'CASH' | 'QR_TRANSFER' | 'VNPAY';
+  voucherId?: number;
+  expectedTotalVnd?: number;
 }
 
 export interface VnPayPaymentUrlResponse {

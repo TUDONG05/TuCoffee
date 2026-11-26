@@ -10,9 +10,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class OrderServiceUnitTests {
     private OrderService orderService;
+    private VoucherService vouchers;
     private User buyer;
     private User admin;
     private Product coffee;
@@ -155,6 +157,7 @@ class OrderServiceUnitTests {
                     return null;
                 });
 
+        vouchers = mock(VoucherService.class);
         orderService = new OrderService(
                 orderRepo,
                 orderItemRepo,
@@ -164,7 +167,23 @@ class OrderServiceUnitTests {
                 productRepo,
                 userRepo,
                 settings,
-                vnPayService);
+                vnPayService,
+                vouchers);
+    }
+
+    @Test
+    void voucherChangesPayableAmountAndIsReservedOnlyOnceOnRetry() {
+        var request = new CreateOrderRequest(List.of(new CreateOrderItemRequest(100L, 2, 35000L)),
+                "Buyer", "0901234567", "Address", null, "CASH", 7L, 60000L);
+        var quote = new VoucherService.Quote(7L, "SAVE10", 70000L, 10000L, 60000L);
+        when(vouchers.reserve(1L, 7L, 70000L)).thenReturn(quote);
+        var order = orderService.createOnlineOrder(1L, "voucher-checkout", request, null);
+        var retry = orderService.createOnlineOrder(1L, "voucher-checkout", request, null);
+        assertEquals(order.id(), retry.id());
+        assertEquals(60000L, order.totalVnd());
+        assertEquals(60000L, order.payment().amountVnd());
+        verify(vouchers).reserve(1L, 7L, 70000L);
+        verify(vouchers).record(order.id(), 1L, quote);
     }
 
     private static void setEntityId(Object entity, Long id) {

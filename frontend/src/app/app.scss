@@ -299,12 +299,15 @@ main.admin-main {
     font-size: 0.8rem;
   }
   .main-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     grid-column: 1 / -1;
     width: 100%;
     margin: 0;
   }
   .main-nav a {
-    flex: 1;
+    padding-inline: .15rem;
+    text-align: center;
     justify-content: center;
   }
   .footer-main {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -8,6 +8,8 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { CartService } from '../../core/cart/cart.service';
 import { OrderService } from '../../core/order/order.service';
 import { OrderResponse } from '../../core/order/order.models';
+import { CartItem } from '../../core/cart/cart.models';
+import { WalletVoucher, VoucherQuote, VoucherService } from '../../core/vouchers/voucher.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { VndPipe } from '../../core/catalog/catalog-ui';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -140,6 +142,25 @@ import { HttpErrorResponse } from '@angular/common/http';
               </nz-radio-group>
             </fieldset>
 
+            <fieldset class="form-section voucher-picker">
+              <legend>Voucher</legend>
+              @if (wallet().length) {
+                <label [attr.for]="fieldId('voucher')">Chọn voucher</label>
+                <select [id]="fieldId('voucher')" [value]="selectedVoucher()" [disabled]="submitting() || quoting()"
+                  (change)="chooseVoucher(+$any($event.target).value)">
+                  <option value="0">Không áp dụng</option>
+                  @for (voucher of wallet(); track voucher.id) {
+                    <option [value]="voucher.id">{{ voucher.code }} · {{ voucher.title }}</option>
+                  }
+                </select>
+              } @else if (!walletError()) { <p>Bạn chưa có voucher đang áp dụng được.</p> }
+              @if (walletError()) { <p>Chưa tải được danh sách voucher.</p> }
+              @if (quoting()) { <p role="status">Đang kiểm tra voucher…</p> }
+              @if (voucherError()) { <p role="alert">{{ voucherError() }}</p> }
+              @if (selectedVoucher() && !activeQuote() && !quoting()) {
+                <button nz-button type="button" [disabled]="submitting()" (click)="chooseVoucher(selectedVoucher())">Kiểm tra lại voucher</button>
+              }
+            </fieldset>
             @if (errorMessage()) {
               <nz-alert nzType="error" [nzMessage]="errorMessage()!" nzShowIcon />
             }
@@ -152,9 +173,9 @@ import { HttpErrorResponse } from '@angular/common/http';
               type="submit"
               class="submit-order-btn"
               [nzLoading]="submitting()"
-              [disabled]="form.invalid || submitting()"
+              [disabled]="form.invalid || submitting() || quoting() || (selectedVoucher() > 0 && !activeQuote())"
             >
-              {{ embedded() ? 'Xác nhận đặt đơn' : 'Đặt hàng ngay' }} ({{ cart.totalAmountVnd() | vnd }})
+              {{ embedded() ? 'Xác nhận đặt đơn' : 'Đặt hàng ngay' }} ({{ payable() | vnd }})
             </button>
           </form>
 
@@ -179,11 +200,14 @@ import { HttpErrorResponse } from '@angular/common/http';
               }
             </div>
             <div class="review-divider"></div>
-            @if (!embedded()) {
+            @if (!embedded() || activeQuote()) {
               <div class="review-row">
                 <span>Tạm tính</span>
                 <span>{{ cart.totalAmountVnd() | vnd }}</span>
               </div>
+            }
+            @if (activeQuote(); as quote) {
+              <div class="review-row"><span>Giảm voucher</span><strong class="free">−{{ quote.discountVnd | vnd }}</strong></div>
             }
             <div class="review-row">
               <span>Phí vận chuyển</span>
@@ -192,7 +216,7 @@ import { HttpErrorResponse } from '@angular/common/http';
             <div class="review-divider"></div>
             <div class="review-row total-row">
               <strong>Tổng thanh toán</strong>
-              <strong class="total-vnd">{{ cart.totalAmountVnd() | vnd }}</strong>
+              <strong class="total-vnd">{{ payable() | vnd }}</strong>
             </div>
           </aside>
         </div>
@@ -247,6 +271,8 @@ import { HttpErrorResponse } from '@angular/common/http';
       margin: 0 auto;
       padding: 2rem 1.5rem 4rem;
     }
+    .voucher-picker select { display: block; width: 100%; margin: .35rem 0; padding: .45rem; border: 1px solid #d8cbc1; }
+    .voucher-picker p { margin: .35rem 0; }
     .checkout-heading {
       margin-bottom: 2rem;
       h1 {
@@ -415,12 +441,59 @@ export class CheckoutPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly voucherService = inject(VoucherService);
+  readonly wallet = signal<WalletVoucher[]>([]);
+  readonly walletError = signal(false);
+  readonly selectedVoucher = signal(0);
+  readonly quoting = signal(false);
+  readonly voucherError = signal('');
+  private readonly quote = signal<{ value: VoucherQuote; items: CartItem[] } | null>(null);
+  readonly activeQuote = computed(() => {
+    const quote = this.quote();
+    return quote?.items === this.cart.items() ? quote.value : null;
+  });
+  readonly payable = computed(() => this.activeQuote()?.totalVnd ?? this.cart.totalAmountVnd());
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
   private idempotencyKey = crypto.randomUUID();
   private lastRequest?: string;
+
+  constructor() {
+    this.voucherService.wallet().subscribe({
+      next: items => {
+        const now = Date.now();
+        this.wallet.set(items.filter(item => item.enabled && item.remaining > 0
+          && Date.parse(item.startsAt) <= now && Date.parse(item.endsAt) > now));
+      },
+      error: () => this.walletError.set(true),
+    });
+  }
+
+  chooseVoucher(id: number): void {
+    if (this.quoting() || this.submitting()) return;
+    this.selectedVoucher.set(id);
+    this.quote.set(null);
+    this.voucherError.set('');
+    if (!id || this.cart.isEmpty()) return;
+    const items = this.cart.items();
+    this.quoting.set(true);
+    this.voucherService.quote(id, this.orderItems(items)).subscribe({
+      next: value => {
+        this.quote.set({ value, items });
+        this.quoting.set(false);
+      },
+      error: (err: HttpErrorResponse) => {
+        this.quoting.set(false);
+        this.voucherError.set(err.error?.detail ?? 'Không áp dụng được voucher. Vui lòng thử lại.');
+      },
+    });
+  }
+
+  private orderItems(items: CartItem[]) {
+    return items.map(item => ({ productId: item.productId, quantity: item.quantity, expectedPriceVnd: item.unitPriceVnd }));
+  }
 
   fieldId(name: string): string {
     return this.embedded() ? `chat-checkout-${name}` : name;
@@ -441,7 +514,9 @@ export class CheckoutPage {
   });
 
   submitOrder(): void {
-    if (this.form.invalid || this.cart.isEmpty() || this.submitting()) return;
+    const quote = this.activeQuote();
+    if (this.form.invalid || this.cart.isEmpty() || this.submitting() || this.quoting()
+      || (this.selectedVoucher() && !quote)) return;
 
     const buyerId = this.auth.user()?.id;
     if (buyerId == null) return;
@@ -451,16 +526,13 @@ export class CheckoutPage {
     const val = this.form.getRawValue();
     const cartItems = this.cart.items();
     const req = {
-      items: cartItems.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        expectedPriceVnd: item.unitPriceVnd,
-      })),
+      items: this.orderItems(cartItems),
       customerName: val.customerName!.trim(),
       customerPhone: val.customerPhone!.trim(),
       customerAddress: val.customerAddress!.trim(),
       note: val.note?.trim() || null,
       paymentMethod: val.paymentMethod!,
+      ...(quote ? { voucherId: quote.voucherId, expectedTotalVnd: quote.totalVnd } : {}),
     };
 
     const request = JSON.stringify(req);
@@ -479,6 +551,7 @@ export class CheckoutPage {
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);
         if (err.status === 409) {
+          if (quote && /^(VOUCHER_|PRICE_CHANGED)/.test(err.error?.code ?? '')) this.quote.set(null);
           // If price changed or idempotency conflict, refresh key
           this.idempotencyKey = crypto.randomUUID();
           this.errorMessage.set(

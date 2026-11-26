@@ -82,6 +82,7 @@ public class SecurityConfig {
                                                 "/api/v1/catalog/images/**",
                                                 "/api/v1/chat/config",
                                                 "/api/v1/policies", "/api/v1/policies/*",
+                                                "/api/v1/promotions",
                                                 "/api/v1/orders/vnpay-ipn",
                                                 "/api/v1/orders/vnpay-return").permitAll()
                                         .requestMatchers(org.springframework.http.HttpMethod.POST,

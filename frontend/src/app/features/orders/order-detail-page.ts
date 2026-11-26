@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -125,6 +125,9 @@ import { HttpErrorResponse } from '@angular/common/http';
                   <span>Phí vận chuyển</span>
                   <span>Miễn phí</span>
                 </div>
+                @if (discountVnd() > 0) {
+                  <div class="summary-line"><span>Giảm voucher</span><strong>−{{ discountVnd() | vnd }}</strong></div>
+                }
                 <div class="summary-line final-line">
                   <strong>Tổng cộng</strong>
                   <strong class="total-vnd">{{ ord.totalVnd | vnd }}</strong>
@@ -533,6 +536,10 @@ export class OrderDetailPage implements OnInit, OnDestroy {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly order = signal<OrderResponse | null>(null);
+  readonly discountVnd = computed(() => {
+    const order = this.order();
+    return order ? order.items.reduce((subtotal, item) => subtotal + item.subtotalVnd, 0) - order.totalVnd : 0;
+  });
   readonly instructions = signal<PaymentInstructionsResponse | null>(null);
   readonly cancelling = signal(false);
   readonly confirmModalVisible = signal(false);
