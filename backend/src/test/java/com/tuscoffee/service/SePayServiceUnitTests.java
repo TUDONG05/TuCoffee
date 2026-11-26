@@ -42,6 +42,9 @@ class SePayServiceUnitTests {
                                 .filter(o -> code.equalsIgnoreCase(o.getPublicCode()))
                                 .findFirst();
                     }
+                    if ("findByIdForUpdate".equals(method.getName())) {
+                        return Optional.ofNullable(orders.get(args[0]));
+                    }
                     return null;
                 });
 
