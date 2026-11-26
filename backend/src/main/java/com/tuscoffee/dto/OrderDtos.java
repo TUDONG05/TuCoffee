@@ -18,8 +18,25 @@ public final class OrderDtos {
             String customerPhone,
             String customerAddress,
             String note,
-            String paymentMethod
-    ) {}
+            String paymentMethod,
+            Long voucherId,
+            Long expectedTotalVnd
+    ) {
+        public CreateOrderRequest(List<CreateOrderItemRequest> items, String customerName, String customerPhone,
+                                  String customerAddress, String note, String paymentMethod) {
+            this(items, customerName, customerPhone, customerAddress, note, paymentMethod, null, null);
+        }
+
+        @Override
+        public String toString() {
+            String original = "CreateOrderRequest[items=" + items + ", customerName=" + customerName
+                    + ", customerPhone=" + customerPhone + ", customerAddress=" + customerAddress
+                    + ", note=" + note + ", paymentMethod=" + paymentMethod;
+            // Keep request hashes for orders created before vouchers compatible with retries.
+            return voucherId == null && expectedTotalVnd == null ? original + "]"
+                    : original + ", voucherId=" + voucherId + ", expectedTotalVnd=" + expectedTotalVnd + "]";
+        }
+    }
 
     public record OrderItemResponse(
             long id,

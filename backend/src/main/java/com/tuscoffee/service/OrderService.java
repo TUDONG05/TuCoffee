@@ -30,6 +30,7 @@ public class OrderService {
     private final UserRepository userRepo;
     private final PaymentSettings paymentSettings;
     private final VnPayService vnPayService;
+    private final VoucherService vouchers;
 
     public OrderService(
             OrderRepository orderRepo,
@@ -40,7 +41,8 @@ public class OrderService {
             ProductRepository productRepo,
             UserRepository userRepo,
             PaymentSettings paymentSettings,
-            VnPayService vnPayService) {
+            VnPayService vnPayService,
+            VoucherService vouchers) {
         this.orderRepo = orderRepo;
         this.orderItemRepo = orderItemRepo;
         this.orderRequestRepo = orderRequestRepo;
@@ -50,6 +52,7 @@ public class OrderService {
         this.userRepo = userRepo;
         this.paymentSettings = paymentSettings;
         this.vnPayService = vnPayService;
+        this.vouchers = vouchers;
     }
 
     @Transactional
@@ -231,6 +234,17 @@ public class OrderService {
                     "Tổng tiền đơn hàng không hợp lệ (tối đa 100.000.000 đ).");
         }
 
+        VoucherService.Quote voucher = null;
+        if (req.voucherId() != null) {
+            if (!"ONLINE".equals(source) || req.expectedTotalVnd() == null) {
+                throw new ApiException(400, "INVALID_VOUCHER_REQUEST", "Hãy xác nhận lại báo giá voucher.");
+            }
+            voucher = vouchers.reserve(buyer.getId(), req.voucherId(), totalVnd);
+            if (voucher.totalVnd() != req.expectedTotalVnd()) {
+                throw new ApiException(409, "VOUCHER_TOTAL_CHANGED", "Tổng thanh toán đã đổi. Hãy chọn lại voucher.");
+            }
+            totalVnd = voucher.totalVnd();
+        }
         order = new Order(
                 publicCode,
                 "ONLINE".equals(source) ? buyer : null,
@@ -243,6 +257,7 @@ public class OrderService {
                 customerAddress,
                 note);
         order = orderRepo.save(order);
+        if (voucher != null) vouchers.record(order.getId(), buyer.getId(), voucher);
 
         for (OrderItem oi : orderItemsToPersist) {
             orderItemRepo.save(
