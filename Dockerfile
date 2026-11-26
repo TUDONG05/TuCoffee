@@ -18,3 +18,4 @@ RUN npm run build
 FROM nginx:alpine AS web
 COPY deploy/web.conf /etc/nginx/conf.d/default.conf
 COPY --from=frontend-build /build/dist/*/browser/ /usr/share/nginx/html/
+RUN chmod -R a+rX /usr/share/nginx/html
