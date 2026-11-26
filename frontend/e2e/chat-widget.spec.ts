@@ -38,15 +38,16 @@ for (const width of [360, 1280]) {
     await expect(dialog.getByRole('alert')).toContainText('Bạn có thể thử gửi lại câu hỏi');
     await expect(question).toHaveValue('Gợi ý cà phê sữa');
     await dialog.getByRole('button', { name: 'Gửi', exact: true }).click();
-    await expect(dialog.getByText('Hướng dẫn chọn món · trang 2 · Cà phê')).toBeVisible();
     await expect(dialog.getByText(/<b>Thẻ được hiển thị dạng văn bản<\/b>/)).toBeVisible();
+    await expect(dialog.getByText('Nguồn tham khảo', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByText('Hướng dẫn chọn món', { exact: false })).toHaveCount(0);
     await expect(dialog.getByRole('link', { name: /Cà phê sữa/ })).toHaveAttribute('href', '/products/11');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await question.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(launch).toBeFocused();
     await launch.click();
-    await expect(dialog.getByText(/Hướng dẫn chọn món/)).toBeVisible();
+    await expect(dialog.getByText(/<b>Thẻ được hiển thị dạng văn bản<\/b>/)).toBeVisible();
     await dialog.getByRole('link', { name: /Cà phê sữa/ }).click();
     await expect(page).toHaveURL(/\/products\/11$/);
   });
