@@ -182,6 +182,6 @@
 
 @if (!isAdminArea()) {
   @defer (on idle) {
-    <app-chat-widget [hidden]="authMode() !== null" />
+    <app-chat-widget [hidden]="authMode() !== null" (loginRequested)="openAuth('login')" />
   }
 }

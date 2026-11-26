@@ -1,13 +1,18 @@
 import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
-  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, effect, inject, signal, viewChild,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, effect, inject, output, signal, viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { Subject, finalize, takeUntil } from 'rxjs';
+import { EMPTY, Subject, catchError, exhaustMap, finalize, takeUntil, takeWhile, timer } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
+import { CartService } from '../../core/cart/cart.service';
+import { CatalogService } from '../../core/catalog/catalog.service';
 import { ChatAnswer, ChatService, ChatTurn } from '../../core/chat/chat.service';
+import { CheckoutPage } from '../checkout/checkout-page';
+import { OrderResponse, PaymentInstructionsResponse } from '../../core/order/order.models';
+import { OrderService } from '../../core/order/order.service';
 
 interface Exchange {
   question: string;
@@ -16,14 +21,27 @@ interface Exchange {
 
 @Component({
   selector: 'app-chat-widget',
-  imports: [DecimalPipe, RouterLink],
+  imports: [DecimalPipe, RouterLink, CheckoutPage],
   templateUrl: './chat-widget.html',
   styleUrl: './chat-widget.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChatWidget {
   private readonly api = inject(ChatService);
-  private readonly auth = inject(AuthService);
+  readonly auth = inject(AuthService);
+  readonly cart = inject(CartService);
+  private readonly catalog = inject(CatalogService);
+  readonly loginRequested = output<void>();
+  readonly checkout = signal(false);
+  readonly placedOrder = signal<OrderResponse | null>(null);
+  readonly payment = signal<PaymentInstructionsResponse | null>(null);
+  readonly paymentLoading = signal(false);
+  readonly paymentError = signal(false);
+  private readonly orders = inject(OrderService);
+  readonly checkoutPage = viewChild(CheckoutPage);
+  readonly cartNotice = signal<{ text: string; kind: 'success' | 'warning' } | null>(null);
+  readonly adding = signal(false);
+  private readonly applied = signal(new Map<Exchange, Set<number>>());
   private readonly destroyRef = inject(DestroyRef);
   private readonly cancel = new Subject<void>();
   private readonly launcher = viewChild<ElementRef<HTMLButtonElement>>('launcher');
@@ -83,12 +101,88 @@ export class ChatWidget {
     this.launcher()?.nativeElement.focus();
   }
 
+  finishCheckout(order: OrderResponse): void {
+    this.placedOrder.set(order);
+    if (order.payment?.method !== 'QR_TRANSFER' || this.paymentFinished(order)) return;
+    this.loadPayment(order.id);
+    timer(3000, 3000).pipe(
+      exhaustMap(() => this.orders.getOrder(order.id).pipe(catchError(() => EMPTY))),
+      takeWhile(updated => !this.paymentFinished(updated), true),
+      takeUntil(this.cancel),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe(updated => this.placedOrder.set(updated));
+  }
+
+  private paymentFinished(order: OrderResponse): boolean {
+    return order.status === 'CANCELLED' || order.payment?.status === 'PAID';
+  }
+
+  loadPayment(id: number): void {
+    if (this.paymentLoading()) return;
+    this.paymentError.set(false);
+    this.paymentLoading.set(true);
+    this.orders.getPaymentInstructions(id).pipe(
+      takeUntil(this.cancel),
+      takeUntilDestroyed(this.destroyRef),
+      finalize(() => this.paymentLoading.set(false)),
+    ).subscribe({
+      next: payment => {
+        if (this.placedOrder()?.id === id) this.payment.set(payment);
+      },
+      error: () => this.paymentError.set(true),
+    });
+  }
+
+  backToChat(): void {
+    if (this.checkoutPage()?.submitting()) return;
+    if (this.placedOrder()) this.cancel.next();
+    this.checkout.set(false);
+    this.placedOrder.set(null);
+    this.payment.set(null);
+    setTimeout(() => this.composer()?.nativeElement.focus());
+  }
+
+  wasAdded(exchange: Exchange, productId: number): boolean {
+    return this.applied().get(exchange)?.has(productId) ?? false;
+  }
+
+  addProduct(exchange: Exchange, productId: number, quantity = 1): void {
+    if (this.adding() || this.wasAdded(exchange, productId)) return;
+    this.adding.set(true);
+    this.cartNotice.set(null);
+    this.catalog.product(productId).pipe(
+      takeUntil(this.cancel),
+      takeUntilDestroyed(this.destroyRef),
+      finalize(() => this.adding.set(false)),
+    ).subscribe({
+      next: product => {
+        const existing = this.cart.items().find(item => item.productId === productId);
+        if ((existing?.quantity ?? 0) + quantity > 99 || (!existing && this.cart.items().length >= 50)) {
+          this.cartNotice.set({ kind: 'warning', text: 'Giỏ hàng đã đạt giới hạn cho món này.' });
+          return;
+        }
+        if (existing && existing.unitPriceVnd !== product.priceVnd) {
+          this.cartNotice.set({ kind: 'warning', text: 'Giá món đã đổi. Hãy kiểm tra món trong giỏ rồi thử lại.' });
+          return;
+        }
+        this.cart.addItem(product, quantity);
+        this.applied.update(items => new Map(items).set(exchange, new Set(items.get(exchange)).add(productId)));
+        this.cartNotice.set({ kind: 'success', text: `Đã thêm ${quantity} × ${product.name} vào giỏ.` });
+      },
+      error: () => this.cartNotice.set({ kind: 'warning', text: 'Không thể thêm món. Bạn hãy kiểm tra lại thực đơn.' }),
+    });
+  }
+
   reset(): void {
     this.cancel.next();
+    this.placedOrder.set(null);
+    this.payment.set(null);
     this.exchanges.set([]);
     this.draft.set('');
     this.sentQuestion.set('');
     this.error.set('');
+    this.applied.set(new Map());
+    this.cartNotice.set(null);
   }
 
   onComposerKey(event: KeyboardEvent): void {
@@ -101,6 +195,11 @@ export class ChatWidget {
   send(question = this.draft()): void {
     const text = question.trim();
     if (this.pending() || !text || text.length > 2000) return;
+    if (/^(?:đặt (?:đơn|hàng)|thanh toán|chốt đơn)(?: giúp (?:tôi|mình))?[.!]?$/iu.test(text)) {
+      this.draft.set('');
+      this.checkout.set(true);
+      return;
+    }
     const context: ChatTurn[] = this.exchanges().slice(-3).flatMap(exchange => [
       { role: 'user' as const, content: exchange.question },
       { role: 'assistant' as const, content: exchange.response.answer },

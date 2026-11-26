@@ -1,6 +1,7 @@
 package com.tuscoffee.service;
 
 import com.tuscoffee.dto.ChatDtos.Answer;
+import com.tuscoffee.dto.ChatDtos.CartProposal;
 import com.tuscoffee.dto.ChatDtos.Citation;
 import com.tuscoffee.dto.ChatDtos.Product;
 import com.tuscoffee.dto.ChatDtos.Question;
@@ -37,6 +38,10 @@ public class ChatAnswerService {
             Chọn tối đa bốn productIds và giải thích ngắn vì sao phù hợp. Nếu mô tả không nói rõ
             về độ ngọt hoặc tùy chỉnh đường, hãy nói rõ giới hạn đó và đừng tự suy đoán.
             Nếu thiếu căn cứ, đặt cả hai danh sách ID rỗng.
+            Nếu khách yêu cầu thêm đúng một món đã xác định vào giỏ, trả thêm
+            cartProposal gồm productId (cũng nằm trong productIds) và quantity (số nguyên 1–99).
+            Dùng 1 nếu khách không nêu số lượng. Nếu món hoặc số lượng mơ hồ, hỏi lại và
+            bỏ cartProposal. Không nói món đã được thêm hay đơn đã được tạo.
             """;
     private static final String CHUNKS = """
             FROM knowledge_chunks c
@@ -87,7 +92,8 @@ public class ChatAnswerService {
             if (documents.isEmpty() && products.isEmpty()) return insufficient();
             JsonNode reply = completion.generate(SYSTEM, Map.of("question", question,
                     "history", history, "documentSources", documents, "catalog", products));
-            return resolve(reply, documents, products);
+            return resolve(reply, documents, products,
+                    normalize(question).matches(".*\\b(them|cho vao gio|bo vao gio)\\b.*"));
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw unavailable();
@@ -177,7 +183,7 @@ public class ChatAnswerService {
                 .limit(24).map(Scored::product).toList();
     }
 
-    private Answer resolve(JsonNode reply, List<Source> documents, List<Candidate> candidates) {
+    private Answer resolve(JsonNode reply, List<Source> documents, List<Candidate> candidates, boolean cartIntent) {
         if (reply == null || !reply.isObject() || !reply.path("answer").isTextual()) return insufficient();
         String answer = reply.path("answer").asText().strip();
         var citations = new ArrayList<Citation>();
@@ -197,13 +203,21 @@ public class ChatAnswerService {
                 return insufficient();
             }
         }
-        if (citations.isEmpty() && products.isEmpty()) return insufficient();
+        if (citations.isEmpty() && products.isEmpty() && !cartIntent) return insufficient();
         if (answer.isBlank() || answer.length() > 4000 || !products.isEmpty() && PRICE_IN_ANSWER.matcher(answer).find()) {
             if (products.isEmpty()) return insufficient();
             answer = "Bạn có thể xem các món phù hợp và giá hiện tại bên dưới.";
             citations.clear();
         }
-        return new Answer(answer, List.copyOf(citations), List.copyOf(products), false);
+        var proposal = reply.path("cartProposal");
+        var id = proposal.path("productId");
+        var quantity = proposal.path("quantity");
+        CartProposal cartProposal = cartIntent && id.isIntegralNumber() && id.canConvertToLong()
+                && quantity.isIntegralNumber() && quantity.canConvertToInt()
+                && quantity.asInt() >= 1 && quantity.asInt() <= 99
+                && products.stream().anyMatch(product -> product.id() == id.asLong())
+                ? new CartProposal(id.asLong(), quantity.asInt()) : null;
+        return new Answer(answer, List.copyOf(citations), List.copyOf(products), false, cartProposal);
     }
 
     private boolean stillCurrent(Source source) {

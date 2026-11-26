@@ -1948,6 +1948,19 @@ components:
           type: string
         insufficientData:
           type: boolean
+        cartProposal:
+          type: object
+          nullable: true
+          description: Món và số lượng đề xuất để khách xác nhận thêm vào giỏ.
+          required: [productId, quantity]
+          properties:
+            productId:
+              type: integer
+              format: int64
+            quantity:
+              type: integer
+              minimum: 1
+              maximum: 99
         citations:
           type: array
           items:

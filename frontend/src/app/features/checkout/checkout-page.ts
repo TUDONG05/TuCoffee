@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -7,6 +7,7 @@ import { NzRadioModule } from 'ng-zorro-antd/radio';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { CartService } from '../../core/cart/cart.service';
 import { OrderService } from '../../core/order/order.service';
+import { OrderResponse } from '../../core/order/order.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { VndPipe } from '../../core/catalog/catalog-ui';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -23,10 +24,16 @@ import { HttpErrorResponse } from '@angular/common/http';
     VndPipe,
   ],
   template: `
-    <section class="checkout-page" aria-labelledby="checkout-title">
+    <section class="checkout-page" [class.embedded]="embedded()" [attr.aria-labelledby]="fieldId('checkout-title')">
       <header class="checkout-heading">
-        <h1 id="checkout-title">Xác nhận và Đặt hàng</h1>
-        <p>Vui lòng cung cấp thông tin nhận hàng và chọn hình thức thanh toán.</p>
+        @if (embedded()) {
+          <h2 [id]="fieldId('checkout-title')">Xác nhận đơn hàng</h2>
+        } @else {
+          <h1 id="checkout-title">Xác nhận và Đặt hàng</h1>
+        }
+        @if (!embedded()) {
+          <p>Vui lòng cung cấp thông tin nhận hàng và chọn hình thức thanh toán.</p>
+        }
       </header>
 
       @if (cart.isEmpty()) {
@@ -48,10 +55,10 @@ import { HttpErrorResponse } from '@angular/common/http';
               <legend>Thông tin nhận hàng</legend>
 
               <div class="form-group">
-                <label for="name">Họ và tên người nhận <span class="required">*</span></label>
+                <label [attr.for]="fieldId('name')">Họ và tên người nhận <span class="required">*</span></label>
                 <input
                   nz-input
-                  id="name"
+                  [id]="fieldId('name')"
                   nzSize="large"
                   formControlName="customerName"
                   placeholder="Nhập họ và tên…"
@@ -65,10 +72,10 @@ import { HttpErrorResponse } from '@angular/common/http';
               </div>
 
               <div class="form-group">
-                <label for="phone">Số điện thoại liên hệ <span class="required">*</span></label>
+                <label [attr.for]="fieldId('phone')">Số điện thoại liên hệ <span class="required">*</span></label>
                 <input
                   nz-input
-                  id="phone"
+                  [id]="fieldId('phone')"
                   nzSize="large"
                   formControlName="customerPhone"
                   placeholder="Ví dụ: 0912345678"
@@ -82,10 +89,10 @@ import { HttpErrorResponse } from '@angular/common/http';
               </div>
 
               <div class="form-group">
-                <label for="address">Địa chỉ giao hàng <span class="required">*</span></label>
+                <label [attr.for]="fieldId('address')">Địa chỉ giao hàng <span class="required">*</span></label>
                 <textarea
                   nz-input
-                  id="address"
+                  [id]="fieldId('address')"
                   nzSize="large"
                   rows="3"
                   formControlName="customerAddress"
@@ -100,10 +107,10 @@ import { HttpErrorResponse } from '@angular/common/http';
               </div>
 
               <div class="form-group">
-                <label for="note">Ghi chú cho quán (tùy chọn)</label>
+                <label [attr.for]="fieldId('note')">Ghi chú cho quán (tùy chọn)</label>
                 <input
                   nz-input
-                  id="note"
+                  [id]="fieldId('note')"
                   nzSize="large"
                   formControlName="note"
                   placeholder="Ví dụ: Ít đường, nhiều đá, giao giờ trưa…"
@@ -116,7 +123,7 @@ import { HttpErrorResponse } from '@angular/common/http';
               <nz-radio-group formControlName="paymentMethod" class="payment-options">
                 <label nz-radio nzValue="QR_TRANSFER" class="payment-radio">
                   <div class="payment-info">
-                    <strong>Chuyển khoản VietQR (Tự động xác nhận qua SePay)</strong>
+                    <strong>{{ embedded() ? 'Chuyển khoản VietQR' : 'Chuyển khoản VietQR (Tự động xác nhận qua SePay)' }}</strong>
                     <span class="payment-desc">
                       Quét mã VietQR bằng app ngân hàng bất kỳ, SePay tự động khớp giao dịch trong vài giây.
                     </span>
@@ -146,12 +153,12 @@ import { HttpErrorResponse } from '@angular/common/http';
               [nzLoading]="submitting()"
               [disabled]="form.invalid || submitting()"
             >
-              Đặt hàng ngay ({{ cart.totalAmountVnd() | vnd }})
+              {{ embedded() ? 'Xác nhận đặt đơn' : 'Đặt hàng ngay' }} ({{ cart.totalAmountVnd() | vnd }})
             </button>
           </form>
 
-          <aside class="order-review" aria-labelledby="review-title">
-            <h2 id="review-title">Món đã chọn ({{ cart.totalCount() }})</h2>
+          <aside class="order-review" [attr.aria-labelledby]="fieldId('review-title')">
+            <h2 [id]="fieldId('review-title')">Món đã chọn ({{ cart.totalCount() }})</h2>
             <div class="review-items">
               @for (item of cart.items(); track item.productId) {
                 <div class="review-item">
@@ -159,15 +166,24 @@ import { HttpErrorResponse } from '@angular/common/http';
                     <strong>{{ item.productName }}</strong>
                     <span class="qty">x {{ item.quantity }}</span>
                   </div>
-                  <span class="price">{{ item.unitPriceVnd * item.quantity | vnd }}</span>
+                  <div class="review-item-end">
+                    <span class="price">{{ item.unitPriceVnd * item.quantity | vnd }}</span>
+                    @if (embedded()) {
+                      <button nz-button nzType="text" class="remove-item" type="button"
+                        [attr.aria-label]="'Xóa ' + item.productName + ' khỏi đơn'"
+                        [disabled]="submitting()" (click)="cart.removeItem(item.productId)">Xóa</button>
+                    }
+                  </div>
                 </div>
               }
             </div>
             <div class="review-divider"></div>
-            <div class="review-row">
-              <span>Tạm tính</span>
-              <span>{{ cart.totalAmountVnd() | vnd }}</span>
-            </div>
+            @if (!embedded()) {
+              <div class="review-row">
+                <span>Tạm tính</span>
+                <span>{{ cart.totalAmountVnd() | vnd }}</span>
+              </div>
+            }
             <div class="review-row">
               <span>Phí vận chuyển</span>
               <span class="free">Miễn phí</span>
@@ -183,6 +199,48 @@ import { HttpErrorResponse } from '@angular/common/http';
     </section>
   `,
   styles: `
+    .checkout-page.embedded {
+      padding: .5rem 0 0;
+      margin: 0;
+      .checkout-heading { margin-bottom: .6rem; }
+      .checkout-heading h2 { margin: 0; font-size: 1.125rem; color: #302017; }
+      .checkout-grid { display: flex; flex-direction: column-reverse; align-items: stretch; gap: .65rem; }
+      .order-review, .form-section {
+        min-width: 0;
+        padding: .75rem;
+        border-color: #e8dacc;
+        border-radius: .85rem;
+        background: #fffdfb;
+      }
+      .order-review h2, .form-section legend { font-size: .95rem; margin-bottom: .4rem; }
+      .review-items { gap: .4rem; max-height: 8rem; }
+      .review-divider { margin: .45rem 0; }
+      .review-item, .review-row { gap: .75rem; font-size: .85rem; }
+      .item-name-qty { overflow-wrap: anywhere; }
+      .price, .total-vnd { flex: none; white-space: nowrap; }
+      .review-item-end { display: flex; align-items: center; gap: .35rem; }
+      .remove-item { color: var(--brand); padding-inline: .35rem; min-height: 32px; }
+      .total-row { align-items: baseline; margin-bottom: 0; }
+      .total-row .total-vnd { font-size: 1.05rem; }
+      .checkout-form { min-width: 0; }
+      .form-section, .form-group { margin-bottom: .55rem; }
+      .form-group:last-child { margin-bottom: 0; }
+      .form-group label { font-size: .8rem; margin-bottom: .2rem; }
+      .payment-options { gap: .35rem; }
+      .payment-radio { padding: .45rem .55rem; }
+      .payment-info strong { font-size: .85rem; }
+      .payment-info .payment-desc { display: none; }
+      .submit-order-btn {
+        margin-top: .2rem;
+        font-size: .95rem;
+        color: #fff;
+        &:disabled {
+          color: #fff;
+          background: #74655b;
+          border-color: #74655b;
+        }
+      }
+    }
     .checkout-page {
       max-width: 1100px;
       margin: 0 auto;
@@ -349,6 +407,8 @@ import { HttpErrorResponse } from '@angular/common/http';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CheckoutPage {
+  readonly embedded = input(false);
+  readonly orderPlaced = output<OrderResponse>();
   readonly cart = inject(CartService);
   private readonly orderService = inject(OrderService);
   private readonly auth = inject(AuthService);
@@ -359,6 +419,11 @@ export class CheckoutPage {
   readonly errorMessage = signal<string | null>(null);
 
   private idempotencyKey = crypto.randomUUID();
+  private lastRequest?: string;
+
+  fieldId(name: string): string {
+    return this.embedded() ? `chat-checkout-${name}` : name;
+  }
 
   readonly form = this.fb.group({
     customerName: [this.auth.user()?.name || '', [Validators.required, Validators.maxLength(100)]],
@@ -377,12 +442,15 @@ export class CheckoutPage {
   submitOrder(): void {
     if (this.form.invalid || this.cart.isEmpty() || this.submitting()) return;
 
+    const buyerId = this.auth.user()?.id;
+    if (buyerId == null) return;
     this.submitting.set(true);
     this.errorMessage.set(null);
 
     const val = this.form.getRawValue();
+    const cartItems = this.cart.items();
     const req = {
-      items: this.cart.items().map((item) => ({
+      items: cartItems.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         expectedPriceVnd: item.unitPriceVnd,
@@ -394,11 +462,18 @@ export class CheckoutPage {
       paymentMethod: val.paymentMethod!,
     };
 
+    const request = JSON.stringify(req);
+    if (this.lastRequest !== undefined && this.lastRequest !== request) {
+      this.idempotencyKey = crypto.randomUUID();
+    }
+    this.lastRequest = request;
     this.orderService.createOrder(req, this.idempotencyKey).subscribe({
       next: (order) => {
-        this.cart.clear();
         this.submitting.set(false);
-        this.router.navigate(['/orders', order.id]);
+        if (this.auth.user()?.id !== buyerId) return;
+        if (this.cart.items() === cartItems) this.cart.clear();
+        if (this.embedded()) this.orderPlaced.emit(order);
+        else this.router.navigate(['/orders', order.id]);
       },
       error: (err: HttpErrorResponse) => {
         this.submitting.set(false);

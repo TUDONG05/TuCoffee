@@ -32,7 +32,7 @@
 .launcher img { border-radius: 50%; object-fit: contain; }
 .panel {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) repeat(2, auto);
   width: min(25rem, calc(100vw - 2rem));
   height: min(38rem, calc(100dvh - 7rem - var(--chat-keyboard, 0px)));
   overflow: hidden;
@@ -41,6 +41,43 @@
   background: #f7f3ef;
   color: var(--chat-espresso);
   box-shadow: 0 12px 48px #30201730;
+}
+.panel[hidden] { display: none; }
+.panel.checkout-mode { grid-template-rows: auto minmax(0, 1fr); }
+.checkout-content { overflow: auto; padding: .7rem; }
+.payment-result { margin-top: .65rem; padding: .85rem; border: 1px solid var(--chat-border); border-radius: .85rem; background: #fffdfb; text-align: center; overflow-wrap: anywhere; }
+.payment-result h2 { font-size: 1rem; }
+.payment-result img { display: block; max-width: 100%; height: auto; margin: .65rem auto; }
+.payment-result p { margin: .4rem 0; }
+.payment-status { padding: .45rem .65rem; border-radius: .6rem; font-weight: 600; }
+.payment-status.waiting { color: #753d14; background: #ffedce; }
+.payment-status.paid { color: #15543b; background: #e1f3e9; }
+.payment-status.cancelled { color: #852b22; background: #fde8e4; }
+.cart-actions { padding: .2rem .7rem; }
+.cart-actions p { margin: 0 0 .3rem; }
+:host .chat .panel .chat-action {
+  margin-top: .25rem;
+  padding: .35rem .65rem;
+  min-height: 36px;
+  border: 1px solid var(--chat-border);
+  border-radius: .65rem;
+  background: #fffdfb;
+  color: var(--chat-espresso);
+  font-size: .85rem;
+}
+:host .chat .panel .chat-action:hover:enabled { background: var(--chat-cream); }
+.cart-actions .cart-notice { padding: .4rem .6rem; border-radius: .6rem; color: #15543b; background: #e1f3e9; }
+.cart-actions .cart-notice.warning { color: #753d14; background: #ffedce; }
+:host .chat .panel .chat-action.back-to-chat { color: #503422; background: #eadbce; border-color: #d7bda7; font-weight: 600; }
+:host .chat .panel .chat-action.back-to-chat:hover:enabled { background: #dfc9b6; }
+:host .chat .panel .chat-action:is(.add-to-cart, .order-action) {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+:host .chat .panel .chat-action:is(.add-to-cart, .order-action):hover:enabled {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 
 header {
