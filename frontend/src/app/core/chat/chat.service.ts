@@ -27,6 +27,7 @@ export interface ChatAnswer {
   citations: ChatCitation[];
   products: ChatProduct[];
   insufficientData: boolean;
+  cartProposal?: { productId: number; quantity: number } | null;
 }
 
 @Injectable({ providedIn: 'root' })

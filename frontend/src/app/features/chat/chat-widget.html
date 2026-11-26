@@ -1,13 +1,56 @@
 @if (enabled()) {
   <div class="chat" [style.--chat-keyboard]="keyboardOffset() + 'px'" (keydown.escape)="close()">
-    @if (open()) {
-      <section id="tucoffee-chat" class="panel" role="dialog" aria-labelledby="chat-heading">
+    @if (open() || checkout()) {
+      <section id="tucoffee-chat" class="panel" [class.checkout-mode]="checkout()" [hidden]="!open()" role="dialog" aria-labelledby="chat-heading">
         <header>
           <img class="avatar" src="/logo.png" alt="" width="36" height="36">
           <h2 id="chat-heading">Tư vấn TuCoffee</h2>
-          <button class="icon-button" type="button" aria-label="Cuộc trò chuyện mới" title="Cuộc trò chuyện mới" (click)="reset()">+</button>
+          @if (!checkout()) {
+            <button class="icon-button" type="button" aria-label="Cuộc trò chuyện mới" title="Cuộc trò chuyện mới" (click)="reset()">+</button>
+          }
           <button class="icon-button close" type="button" aria-label="Đóng cửa sổ chat" (click)="close()">×</button>
         </header>
+        @if (checkout()) {
+          <div class="checkout-content">
+            <button class="chat-action back-to-chat" type="button" [disabled]="checkoutPage()?.submitting()" (click)="backToChat()">← Về cuộc trò chuyện</button>
+            @if (placedOrder(); as order) {
+              <div class="payment-result">
+                <h2>Đã tạo đơn #{{ order.publicCode }}</h2>
+                @if (order.status === 'CANCELLED') {
+                  <p class="payment-status cancelled" role="status">Đơn hàng đã hủy</p>
+                } @else if (order.payment?.status === 'PAID' || payment()?.status === 'PAID') {
+                  <p class="payment-status paid" role="status">✓ Thanh toán thành công</p>
+                } @else if (paymentLoading()) {
+                  <p role="status">Đang tải thông tin thanh toán…</p>
+                } @else if (paymentError()) {
+                  <p role="alert">Chưa tải được thông tin thanh toán.</p>
+                  <button class="chat-action" type="button" (click)="loadPayment(order.id)">Tải lại thông tin thanh toán</button>
+                } @else if (payment(); as details) {
+                    <p class="payment-status waiting" role="status">Chờ thanh toán</p>
+                    <p>Quét VietQR bằng ứng dụng ngân hàng.</p>
+                    @if (details.qrUrl) {
+                      <img [src]="details.qrUrl" alt="Mã VietQR thanh toán đơn hàng" width="200" height="200">
+                    } @else {
+                      <p>Mã VietQR chưa khả dụng.</p>
+                    }
+                    <p><strong>{{ details.amountVnd | number:'1.0-0' }} ₫</strong></p>
+                    <p>{{ details.bankCode }} · {{ details.bankAccount }}<br>{{ details.bankAccountName }}</p>
+                    <p>Nội dung: <strong>{{ details.transferContent }}</strong></p>
+                } @else if (order.payment?.method === 'CASH') {
+                  <p>Thanh toán khi nhận hàng.</p>
+                }
+                <a [routerLink]="['/orders', order.id]" (click)="close()">Xem chi tiết đơn</a>
+              </div>
+            } @else if (cart.isEmpty()) {
+              <p>Giỏ hàng đang trống. Bạn hãy thêm món trước khi đặt đơn.</p>
+            } @else if (!auth.user()) {
+              <p>Bạn cần đăng nhập để đặt đơn.</p>
+              <button class="chat-action" type="button" (click)="loginRequested.emit()">Đăng nhập</button>
+            } @else {
+              <app-checkout-page [embedded]="true" (orderPlaced)="finishCheckout($event)" />
+            }
+          </div>
+        } @else {
         <div #transcript class="transcript" role="log" aria-label="Cuộc trò chuyện" aria-live="polite">
           @if (!exchanges().length && !sentQuestion()) {
             <div class="welcome">
@@ -23,7 +66,19 @@
           @for (exchange of exchanges(); track $index) {
             <p class="message question"><span class="sr-only">Bạn: </span>{{ exchange.question }}</p>
             <div class="message answer">
-              <p><span class="sr-only">TuCoffee: </span>{{ exchange.response.answer }}</p>
+              @if (exchange.response.cartProposal; as proposal) {
+                <p>Kiểm tra món và số lượng rồi bấm nút để thêm vào giỏ.</p>
+                @for (product of exchange.response.products; track product.id) {
+                  @if (product.id === proposal.productId) {
+                    <button class="chat-action add-to-cart" type="button" [disabled]="adding() || wasAdded(exchange, product.id)"
+                      (click)="addProduct(exchange, product.id, proposal.quantity)">
+                      Thêm {{ proposal.quantity }} × {{ product.name }} vào giỏ
+                    </button>
+                  }
+                }
+              } @else {
+                <p><span class="sr-only">TuCoffee: </span>{{ exchange.response.answer }}</p>
+              }
               @if (exchange.response.products.length > 0) {
                 <div class="products">
                   @for (product of exchange.response.products; track product.id) {
@@ -33,6 +88,10 @@
                       }
                       <span><strong>{{ product.name }}</strong><small>{{ product.priceVnd | number:'1.0-0' }} ₫</small></span>
                     </a>
+                    @if (!exchange.response.cartProposal) {
+                      <button class="chat-action add-to-cart" type="button" [disabled]="adding() || wasAdded(exchange, product.id)"
+                        (click)="addProduct(exchange, product.id)">Thêm {{ product.name }} vào giỏ</button>
+                    }
                   }
                 </div>
               }
@@ -44,6 +103,18 @@
           @if (pending()) { <p role="status">Đang trả lời…</p> }
           @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
         </div>
+        @if (cartNotice() || !cart.isEmpty()) {
+          <div class="cart-actions">
+            @if (cartNotice(); as notice) {
+              <p class="cart-notice" [class.warning]="notice.kind === 'warning'" role="status">
+                <span aria-hidden="true">{{ notice.kind === 'success' ? '✓' : '!' }}</span> {{ notice.text }}
+              </p>
+            }
+            @if (!cart.isEmpty()) {
+              <button class="chat-action order-action" type="button" (click)="checkout.set(true)">Đặt đơn · {{ cart.totalCount() }} món</button>
+            }
+          </div>
+        }
         <form class="composer" (submit)="$event.preventDefault(); send()">
           <label class="sr-only" for="tucoffee-chat-question">Câu hỏi của bạn</label>
           <textarea #composer id="tucoffee-chat-question" placeholder="Nhập câu hỏi…" maxlength="2000" rows="1"
@@ -54,6 +125,7 @@
             </svg>
           </button>
         </form>
+        }
       </section>
     }
     <button #launcher class="launcher" type="button" [attr.aria-expanded]="open()" aria-controls="tucoffee-chat"
