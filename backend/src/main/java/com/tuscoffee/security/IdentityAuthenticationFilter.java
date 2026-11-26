@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +19,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.dao.DataAccessException;
 
 public class IdentityAuthenticationFilter extends OncePerRequestFilter {
+    private static final Pattern PRIVATE_REVIEW_PATH =
+            Pattern.compile("/api/v1/products/[0-9]+/reviews/mine");
+
     private final TokenService tokens;
     private final IdentityService identity;
     private final ApiErrors errors;
@@ -34,7 +38,8 @@ public class IdentityAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return !(path.startsWith("/api/v1/users")
                 || path.startsWith("/api/v1/admin")
-                || path.startsWith("/api/v1/orders"));
+                || path.startsWith("/api/v1/orders")
+                || PRIVATE_REVIEW_PATH.matcher(path).matches());
     }
 
     @Override
