@@ -20,9 +20,9 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Explicit local-only import. Existing source mappings and admin edits are never overwritten. */
+/** Explicit catalog import. Existing source mappings and admin edits are never overwritten. */
 @Component
-@Profile("local")
+@Profile({"local", "catalog-import"})
 @ConditionalOnProperty(prefix = "catalog.seed", name = "enabled", havingValue = "true")
 public class CatalogSeed implements CommandLineRunner {
     private static final String SOURCE = "coffe-web-i8h3";
@@ -48,7 +48,7 @@ public class CatalogSeed implements CommandLineRunner {
     @Override
     public void run(String... args) {
         Result result = importReference();
-        System.out.printf("Local reference catalog: %d created, %d existing products preserved.%n",
+        System.out.printf("Reference catalog: %d created, %d existing products preserved.%n",
                 result.created(), result.skipped());
     }
 

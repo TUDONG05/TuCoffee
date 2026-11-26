@@ -88,3 +88,42 @@ jobs:
       - name: Log backend khi có lỗi
         if: failure()
         run: test ! -f /tmp/tu-coffee-api.log || cat /tmp/tu-coffee-api.log
+
+  deploy:
+    name: Triển khai develop lên TuCoffee
+    needs: foundation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: tucoffee-develop
+    concurrency:
+      group: tucoffee-develop
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Kiểm tra commit còn là đầu nhánh develop
+        id: revision
+        run: |
+          set -euo pipefail
+          current=$(git ls-remote --exit-code origin refs/heads/develop | cut -f1)
+          if [[ "$current" == "$GITHUB_SHA" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Gửi bản build lên máy chủ và kiểm tra HTTPS
+        if: steps.revision.outputs.deploy == 'true'
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          : "${DEPLOY_SSH_KEY:?Missing DEPLOY_SSH_KEY}"
+          : "${DEPLOY_KNOWN_HOSTS:?Missing DEPLOY_KNOWN_HOSTS}"
+          umask 077
+          ssh_files=$(mktemp -d)
+          trap 'rm -f "$ssh_files/key" "$ssh_files/known_hosts"; rmdir "$ssh_files"' EXIT
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_files/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_files/known_hosts"
+          git archive "$GITHUB_SHA" | ssh -T -i "$ssh_files/key" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_files/known_hosts" -o ConnectTimeout=15 \
+            tudong@tucoffee.tudv.tech
