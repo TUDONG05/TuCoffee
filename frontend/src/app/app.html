@@ -7,6 +7,7 @@
   <nav class="main-nav" aria-label="Điều hướng chính">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}">Trang chủ</a>
     <a routerLink="/menu" routerLinkActive="active">Thực đơn</a>
+    <a routerLink="/chinh-sach" routerLinkActive="active">Chính sách</a>
     <a routerLink="/cart" routerLinkActive="active" class="cart-nav-link" aria-label="Giỏ hàng">
       <span>Giỏ hàng</span>
       @if (cart.totalCount() > 0) {
@@ -116,6 +117,7 @@
       <h2 id="footer-explore">Khám phá</h2>
       <a routerLink="/">Trang chủ</a>
       <a routerLink="/menu">Thực đơn</a>
+      <a routerLink="/chinh-sach">Chính sách</a>
       <a href="#main">Về đầu trang</a>
     </nav>
     <nav class="footer-links" aria-labelledby="footer-account">

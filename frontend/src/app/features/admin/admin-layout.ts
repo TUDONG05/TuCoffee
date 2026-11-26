@@ -26,6 +26,7 @@ export class AdminLayout {
     { path: '/admin/pos', label: 'Bán tại quầy', icon: 'M3 3h18v13H3z M8 21h8 M12 16v5 M7 7h10 M7 11h5' },
     { path: '/admin/reviews', label: 'Quản lý đánh giá', icon: 'm12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1Z' },
     { path: '/admin/knowledge', label: 'Tài liệu tri thức', icon: 'M6 3h9l4 4v14H6z M15 3v5h4 M9 12h7 M9 16h7' },
+    { path: '/admin/policies', label: 'Chính sách', icon: 'M6 3h12v18H6z M9 8h6 M9 12h6 M9 16h4' },
     { path: '/admin', label: 'Tổng quan', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z' },
     { path: '/admin/orders', label: 'Quản lý đơn hàng', icon: 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
     { path: '/admin/users', label: 'Quản lý tài khoản', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M16 3a4 4 0 0 1 0 8 M22 21v-2a4 4 0 0 0-3-3.87 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z' },
