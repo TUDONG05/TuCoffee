@@ -15,11 +15,11 @@ spring:
   config:
     import: optional:file:../.env[.properties],optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:tu_coffee}?connectionTimeZone=UTC&connectTimeout=3000&socketTimeout=5000
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:tu_coffee}?connectionTimeZone=UTC&connectTimeout=${MYSQL_CONNECT_TIMEOUT_MS:3000}&socketTimeout=${MYSQL_SOCKET_TIMEOUT_MS:5000}
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
     hikari:
-      connection-timeout: 3000
+      connection-timeout: ${MYSQL_POOL_TIMEOUT_MS:3000}
       validation-timeout: 1000
       maximum-pool-size: 5
   jpa:
@@ -30,6 +30,7 @@ spring:
       hibernate.jdbc.time_zone: UTC
   flyway:
     enabled: true
+    connect-retries: ${MYSQL_MIGRATION_CONNECT_RETRIES:0}
     locations: classpath:db/migration
     clean-disabled: true
   servlet:
