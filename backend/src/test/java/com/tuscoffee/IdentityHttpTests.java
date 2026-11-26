@@ -66,6 +66,9 @@ class IdentityHttpTests extends MySqlIntegrationSupport {
         jdbc.update("DELETE FROM payments");
         jdbc.update("DELETE FROM order_items");
         jdbc.update("DELETE FROM order_requests");
+        jdbc.update("DELETE FROM voucher_redemptions");
+        jdbc.update("DELETE FROM voucher_grants");
+        jdbc.update("DELETE FROM voucher_group_members");
         jdbc.update("DELETE FROM orders");
         jdbc.update("DELETE FROM auth_token_history");
         jdbc.update("DELETE FROM auth_sessions");
