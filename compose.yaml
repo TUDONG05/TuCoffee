@@ -24,6 +24,10 @@ services:
         condition: service_healthy
     environment:
       MYSQL_HOST: db
+      MYSQL_CONNECT_TIMEOUT_MS: "10000"
+      MYSQL_SOCKET_TIMEOUT_MS: "15000"
+      MYSQL_POOL_TIMEOUT_MS: "15000"
+      MYSQL_MIGRATION_CONNECT_RETRIES: "4"
       MYSQL_USER: coffee
       MYSQL_PASSWORD: ${TUCOFFEE_DB_PASSWORD:?Set TUCOFFEE_DB_PASSWORD}
       SERVER_ADDRESS: 0.0.0.0
