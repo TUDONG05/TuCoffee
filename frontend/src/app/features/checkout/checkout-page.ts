@@ -143,6 +143,7 @@ import { HttpErrorResponse } from '@angular/common/http';
             @if (errorMessage()) {
               <nz-alert nzType="error" [nzMessage]="errorMessage()!" nzShowIcon />
             }
+            <a routerLink="/chinh-sach" target="_blank" rel="noopener">Xem chính sách TuCoffee</a>
 
             <button
               nz-button
