@@ -11,12 +11,12 @@ import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Flow;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
-@ConditionalOnProperty(name = "RAG_WORKER_ENABLED", havingValue = "true")
+@ConditionalOnExpression("${RAG_WORKER_ENABLED:false} or ${RAG_CHAT_ENABLED:false}")
 public class KnowledgeEmbeddingClient {
     private static final int MAX_RESPONSE_BYTES = 512 * 1024;
     private final URI url;
@@ -86,7 +86,7 @@ public class KnowledgeEmbeddingClient {
         return mapper.writeValueAsString(embedding);
     }
 
-    private static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
+    static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
         private final HttpResponse.BodySubscriber<byte[]> delegate = HttpResponse.BodySubscribers.ofByteArray();
         private Flow.Subscription subscription;
         private long bytes;

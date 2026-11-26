@@ -179,3 +179,9 @@
     }
   </ng-container>
 </nz-modal>
+
+@if (!isAdminArea()) {
+  @defer (on idle) {
+    <app-chat-widget [hidden]="authMode() !== null" />
+  }
+}

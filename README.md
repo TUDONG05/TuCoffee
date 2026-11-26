@@ -226,6 +226,12 @@ Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSW
 
 Khi cần tạm dừng xử lý, đặt `RAG_WORKER_ENABLED=false` và khởi động lại backend. Sao lưu schema MySQL và toàn bộ thư mục `RAG_STORAGE_ROOT` cùng thời điểm khi backend đã dừng để giữ file gốc khớp với các phiên bản trong DB. Khôi phục cả hai trước khi khởi động lại.
 
+## Chat tư vấn trên trang khách hàng
+
+Bật `RAG_CHAT_ENABLED=true` trong `.env`, cấu hình model trả lời qua `RAG_CHAT_MODEL` và endpoint qua `RAG_CHAT_URL`. Có thể dùng lại key của embedding hoặc đặt `RAG_CHAT_API_KEY` riêng. Các biến còn lại và hạn mức có trong [tệp mẫu cấu hình](.env.example). Sau khi khởi động lại backend, khách có thể bấm logo ở góc dưới bên phải để hỏi đáp mà không cần đăng nhập.
+
+Để một tài liệu xuất hiện trong câu trả lời, chờ trạng thái **Sẵn sàng** rồi chọn **Bật nguồn** ở cột **Sử dụng**. Chỉ bật tài liệu được phép dùng để trả lời khách. Gợi ý món và giá lấy từ catalog hiện tại.
+
 ## Thiết kế database toàn dự án
 
 Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập dữ liệu mẫu cho thực đơn mặc định tắt và chỉ chạy khi được bật trong profile `local`.

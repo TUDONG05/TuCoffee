@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "TuCoffee — Trợ lý tư vấn",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Chat tư vấn công khai. Chạy Lấy token CSRF trước khi gửi câu hỏi để Postman lưu cookie và token tương ứng."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Cấu hình trợ lý",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/chat/config"
+      }
+    },
+    {
+      "name": "Lấy token CSRF",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/auth/csrf"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const payload = pm.response.json();",
+              "pm.collectionVariables.set('csrfToken', payload.token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hỏi trợ lý",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/chat/messages",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"Quán có món cà phê nào dưới 60.000 đồng?\",\n  \"context\": []\n}"
+        }
+      }
+    }
+  ]
+}

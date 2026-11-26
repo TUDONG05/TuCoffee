@@ -1,0 +1,64 @@
+@if (enabled()) {
+  <div class="chat" [style.--chat-keyboard]="keyboardOffset() + 'px'" (keydown.escape)="close()">
+    @if (open()) {
+      <section id="tucoffee-chat" class="panel" role="dialog" aria-labelledby="chat-heading">
+        <header>
+          <img class="avatar" src="/logo.png" alt="" width="36" height="36">
+          <h2 id="chat-heading">Tư vấn TuCoffee</h2>
+          <button class="icon-button" type="button" aria-label="Cuộc trò chuyện mới" title="Cuộc trò chuyện mới" (click)="reset()">+</button>
+          <button class="icon-button close" type="button" aria-label="Đóng cửa sổ chat" (click)="close()">×</button>
+        </header>
+        <div #transcript class="transcript" role="log" aria-label="Cuộc trò chuyện" aria-live="polite">
+          @if (!exchanges().length && !sentQuestion()) {
+            <div class="welcome">
+              <img class="avatar" src="/logo.png" alt="" width="26" height="26">
+              <p class="message answer">Xin chào! TuCoffee có thể giúp gì cho bạn?</p>
+            </div>
+            <div class="suggestions">
+              @for (suggestion of suggestions; track suggestion) {
+                <button type="button" (click)="send(suggestion)">{{ suggestion }}</button>
+              }
+            </div>
+          }
+          @for (exchange of exchanges(); track $index) {
+            <p class="message question"><span class="sr-only">Bạn: </span>{{ exchange.question }}</p>
+            <div class="message answer">
+              <p><span class="sr-only">TuCoffee: </span>{{ exchange.response.answer }}</p>
+              @if (exchange.response.products.length > 0) {
+                <div class="products">
+                  @for (product of exchange.response.products; track product.id) {
+                    <a class="product" [routerLink]="['/products', product.id]" (click)="close()">
+                      @if (safeImage(product.imageUrl); as image) {
+                        <img [src]="image" alt="" width="44" height="44" loading="lazy">
+                      }
+                      <span><strong>{{ product.name }}</strong><small>{{ product.priceVnd | number:'1.0-0' }} ₫</small></span>
+                    </a>
+                  }
+                </div>
+              }
+            </div>
+          }
+          @if (sentQuestion()) {
+            <p class="message question"><span class="sr-only">Bạn: </span>{{ sentQuestion() }}</p>
+          }
+          @if (pending()) { <p role="status">Đang trả lời…</p> }
+          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        </div>
+        <form class="composer" (submit)="$event.preventDefault(); send()">
+          <label class="sr-only" for="tucoffee-chat-question">Câu hỏi của bạn</label>
+          <textarea #composer id="tucoffee-chat-question" placeholder="Nhập câu hỏi…" maxlength="2000" rows="1"
+            [value]="draft()" (input)="draft.set(composer.value)" (keydown)="onComposerKey($event)"></textarea>
+          <button class="send" type="submit" aria-label="Gửi" [disabled]="pending() || !draft().trim()">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m21 3-7 18-4-7-7-4 18-7ZM10 14 21 3"/>
+            </svg>
+          </button>
+        </form>
+      </section>
+    }
+    <button #launcher class="launcher" type="button" [attr.aria-expanded]="open()" aria-controls="tucoffee-chat"
+      [attr.aria-label]="open() ? 'Thu gọn tư vấn TuCoffee' : 'Mở tư vấn TuCoffee'" (click)="toggle()">
+      <img src="/logo.png" alt="" width="49" height="49">
+    </button>
+  </div>
+}

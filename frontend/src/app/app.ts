@@ -10,6 +10,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzDropdownModule } from 'ng-zorro-antd/dropdown';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { ChatWidget } from './features/chat/chat-widget';
 
 @Component({
   imports: [
@@ -22,6 +23,7 @@ import { NzMenuModule } from 'ng-zorro-antd/menu';
     NzModalModule,
     NzDropdownModule,
     NzMenuModule,
+    ChatWidget,
   ],
   selector: 'app-root',
   styleUrl: './app.scss',

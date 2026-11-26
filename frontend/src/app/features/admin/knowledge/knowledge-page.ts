@@ -46,6 +46,7 @@ export class KnowledgePage {
   readonly pageSizes = [5, 10, 20, 50];
   readonly pageCount = computed(() => Math.max(1, Math.ceil((this.result()?.total ?? 0) / this.pageSize())));
   readonly deleteTarget = signal<KnowledgeDocument | null>(null);
+  readonly publishTarget = signal<KnowledgeDocument | null>(null);
   query = '';
   enabled = '';
   format = '';
@@ -191,6 +192,22 @@ export class KnowledgePage {
 
   retry(doc: KnowledgeDocument): void {
     this.run(this.api.retry(doc, doc.latestVersion.id), 'Đã xếp hàng xử lý lại tài liệu.');
+  }
+
+  toggleSource(doc: KnowledgeDocument): void {
+    if (this.saving()) return;
+    if (doc.enabled) {
+      this.run(this.api.setEnabled(doc, false), 'Đã tắt nguồn cho chatbot.');
+    } else if (doc.activeVersionId !== null) {
+      this.publishTarget.set(doc);
+    }
+  }
+
+  confirmPublish(): void {
+    const doc = this.publishTarget();
+    if (!doc || this.saving()) return;
+    this.publishTarget.set(null);
+    this.run(this.api.setEnabled(doc, true), 'Đã bật nguồn cho chatbot.');
   }
 
   confirmDelete(): void {
