@@ -1,0 +1,328 @@
+<section class="catalog-admin" aria-labelledby="products-title">
+  <header class="page-heading">
+    <div>
+      <h1 id="products-title">Quản lý sản phẩm</h1>
+    </div>
+    <button
+      nz-button
+      nzType="primary"
+      nzSize="large"
+      type="button"
+      (click)="edit()"
+      [disabled]="changing() || categories().length === 0"
+    >
+      Thêm sản phẩm
+    </button>
+  </header>
+  @if (categoryError()) {
+    <nz-alert class="feedback" nzType="error" [nzMessage]="categoryError()" role="alert" /><button
+      nz-button
+      type="button"
+      (click)="loadCategories()"
+    >
+      Tải lại danh mục
+    </button>
+  }
+  <form class="filter-bar" [formGroup]="list.filters" (ngSubmit)="list.load(0)">
+    <div>
+      <label for="admin-product-search">Tên hoặc mô tả</label
+      ><input
+        nz-input
+        nzSize="large"
+        id="admin-product-search"
+        formControlName="q"
+        type="search"
+        maxlength="100"
+        placeholder="Tìm sản phẩm…"
+      />
+    </div>
+    <div>
+      <label for="admin-product-category">Danh mục</label
+      ><nz-select nzId="admin-product-category" nzSize="large" formControlName="categoryId"
+        ><nz-option [nzValue]="null" nzLabel="Tất cả danh mục" />
+        @for (item of categories(); track item.id) {
+          <nz-option [nzValue]="item.id" [nzLabel]="item.name" />
+        }
+      </nz-select>
+    </div>
+    <div>
+      <label for="admin-product-active">Trạng thái</label
+      ><nz-select nzId="admin-product-active" nzSize="large" formControlName="active"
+        ><nz-option nzValue="" nzLabel="Tất cả" /><nz-option
+          nzValue="true"
+          nzLabel="Đang bán" /><nz-option nzValue="false" nzLabel="Ngừng bán"
+      /></nz-select>
+    </div>
+    <div>
+      <label for="admin-product-sort">Sắp xếp</label
+      ><nz-select nzId="admin-product-sort" nzSize="large" formControlName="sort"
+        ><nz-option nzValue="id" nzLabel="Mặc định" /><nz-option
+          nzValue="name"
+          nzLabel="Tên A–Z" /><nz-option nzValue="priceAsc" nzLabel="Giá tăng dần" /><nz-option
+          nzValue="priceDesc"
+          nzLabel="Giá giảm dần"
+      /></nz-select>
+    </div>
+    <button nz-button nzType="primary" nzSize="large" type="submit" [nzLoading]="list.busy()">
+      Tìm kiếm
+    </button>
+  </form>
+  @if (list.error() || error()) {
+    <nz-alert
+      class="feedback"
+      nzType="error"
+      [nzMessage]="error() || list.error()"
+      role="alert"
+    /><button nz-button type="button" (click)="error.set(''); list.load()">Tải lại sản phẩm</button>
+  }
+  @if (message()) {
+    <nz-alert class="feedback" nzType="success" [nzMessage]="message()" role="status" />
+  }
+  @if (pending(); as item) {
+    <section class="confirm" aria-labelledby="product-confirm-title">
+      <h2 id="product-confirm-title">
+        {{ item.active ? 'Ngừng bán sản phẩm này?' : 'Bật bán sản phẩm này?' }}
+      </h2>
+      <p>
+        {{ item.name }}.
+        {{
+          item.active
+            ? 'Món sẽ được ẩn khỏi thực đơn khách.'
+            : 'Món chỉ hiển thị khi danh mục cũng đang hoạt động.'
+        }}
+      </p>
+      <div class="confirm-actions">
+        <button
+          nz-button
+          nzType="primary"
+          type="button"
+          [nzLoading]="changing()"
+          [disabled]="changing()"
+          (click)="toggle()"
+        >
+          Xác nhận</button
+        ><button nz-button type="button" [disabled]="changing()" (click)="pending.set(null)">
+          Hủy
+        </button>
+      </div>
+    </section>
+  }
+  <div class="table-region products-table" role="region" aria-label="Danh sách sản phẩm" tabindex="0">
+    <nz-table
+      #table
+      [nzData]="list.result().items"
+      [nzLoading]="list.busy()"
+      [nzShowPagination]="false"
+      [nzFrontPagination]="false"
+      [nzScroll]="{ x: '850px' }"
+      ><thead>
+        <tr>
+          <th nzWidth="80px">Ảnh</th>
+          <th>Sản phẩm</th>
+          <th>Giá bán</th>
+          <th>Trạng thái</th>
+          <th nzWidth="280px">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (item of table.data; track item.id) {
+          <tr>
+            <td><app-product-image class="thumb" [src]="item.imageUrl" [alt]="item.name" /></td>
+            <td>
+              <span class="product-title">{{ item.name }}</span
+              ><span class="product-subtitle"
+                >{{ item.category.name
+                }}{{ item.category.active ? '' : ' · Danh mục ngừng hoạt động' }}</span
+              >
+            </td>
+            <td class="price">{{ item.priceVnd | vnd }}</td>
+            <td>
+              <nz-tag [nzColor]="item.active ? 'success' : 'default'">{{
+                item.active ? 'Đang bán' : 'Ngừng bán'
+              }}</nz-tag>
+            </td>
+            <td>
+              <div class="row-actions">
+                <button
+                  nz-button
+                  type="button"
+                  (click)="edit(item)"
+                  [disabled]="changing()"
+                  [attr.aria-label]="'Sửa ' + item.name"
+                >
+                  Sửa</button
+                ><button
+                  nz-button
+                  type="button"
+                  (click)="openImage(item)"
+                  [disabled]="changing()"
+                  [attr.aria-label]="'Đổi ảnh ' + item.name"
+                >
+                  Đổi ảnh</button
+                ><button
+                  nz-button
+                  type="button"
+                  (click)="pending.set(item)"
+                  [disabled]="changing()"
+                  [attr.aria-label]="(item.active ? 'Ngừng bán ' : 'Bật bán ') + item.name"
+                >
+                  {{ item.active ? 'Ngừng bán' : 'Bật bán' }}
+                </button>
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody></nz-table
+    >
+  </div>
+  <p class="count" aria-live="polite">{{ list.result().totalItems }} sản phẩm</p>
+  @if (list.result().totalItems > list.pageSize) {
+    <nz-pagination
+      [nzPageIndex]="list.page() + 1"
+      [nzPageSize]="list.pageSize"
+      [nzTotal]="list.result().totalItems"
+      [nzDisabled]="list.busy()"
+      (nzPageIndexChange)="list.load($event - 1)"
+    />
+  }
+  <nz-modal
+    [nzVisible]="open()"
+    [nzTitle]="selected() ? 'Sửa sản phẩm' : 'Thêm sản phẩm'"
+    [nzFooter]="null"
+    [nzNoAnimation]="true"
+    [nzClosable]="!changing()"
+    [nzKeyboard]="!changing()"
+    [nzMaskClosable]="false"
+    (nzOnCancel)="close()"
+    ><ng-container *nzModalContent
+      ><form nz-form nzLayout="vertical" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <fieldset [disabled]="changing()">
+          <div class="field">
+            <label for="product-name">Tên sản phẩm</label
+            ><input
+              nz-input
+              nzSize="large"
+              id="product-name"
+              formControlName="name"
+              maxlength="200"
+              required
+              [attr.aria-invalid]="invalid('name')"
+            />
+            @if (invalid('name')) {
+              <small class="field-error">Nhập tên món, tối đa 200 ký tự.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="product-category">Danh mục sản phẩm</label
+            ><nz-select
+              nzId="product-category"
+              nzSize="large"
+              formControlName="categoryId"
+              nzPlaceHolder="Chọn danh mục"
+              [nzDisabled]="changing()"
+            >
+              @for (item of categories(); track item.id) {
+                <nz-option
+                  [nzValue]="item.id"
+                  [nzLabel]="item.name + (item.active ? '' : ' (ngừng hoạt động)')"
+                />
+              }
+            </nz-select>
+            @if (invalid('categoryId')) {
+              <small class="field-error">Vui lòng chọn danh mục.</small>
+            }
+          </div>
+          <div class="field">
+            <label for="product-price">Giá bán (VND)</label
+            ><input
+              nz-input
+              nzSize="large"
+              id="product-price"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="100000000"
+              step="1"
+              formControlName="priceVnd"
+              required
+              [attr.aria-invalid]="invalid('priceVnd')"
+            /><small [class.field-error]="invalid('priceVnd')"
+              >Số nguyên từ 0 đến 100.000.000 đồng.</small
+            >
+          </div>
+          <div class="field">
+            <label for="product-description">Mô tả</label
+            ><textarea
+              nz-input
+              id="product-description"
+              formControlName="description"
+              rows="4"
+              maxlength="10000"
+            ></textarea
+            ><small>Tối đa 10.000 ký tự. Không bắt buộc.</small>
+          </div>
+          @if (formError()) {
+            <nz-alert class="modal-error" nzType="error" [nzMessage]="formError()" role="alert" />
+          }
+          <div class="modal-actions">
+            <button nz-button type="button" [disabled]="changing()" (click)="close()">Hủy</button
+            ><button
+              nz-button
+              nzType="primary"
+              type="submit"
+              [disabled]="changing() || !!categoryError()"
+              [nzLoading]="changing()"
+            >
+              Lưu sản phẩm
+            </button>
+          </div>
+        </fieldset>
+      </form></ng-container
+    ></nz-modal
+  >
+  <nz-modal
+    [nzVisible]="imageProduct() !== null"
+    nzTitle="Cập nhật ảnh sản phẩm"
+    [nzFooter]="null"
+    [nzNoAnimation]="true"
+    [nzClosable]="!changing()"
+    [nzKeyboard]="!changing()"
+    [nzMaskClosable]="false"
+    (nzOnCancel)="closeImage()"
+    ><ng-container *nzModalContent>
+      @if (imageProduct(); as item) {
+        <p>
+          <strong>{{ item.name }}</strong>
+        </p>
+        <app-product-image class="image-preview" [src]="item.imageUrl" [alt]="item.name" />
+        <div class="field">
+          <label for="product-image">Ảnh sản phẩm</label
+          ><input
+            class="image-input"
+            id="product-image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            [disabled]="changing()"
+            (change)="chooseImage($event)"
+          /><small>JPEG, PNG hoặc WebP, tối đa 5 MB.</small>
+        </div>
+        @if (imageError()) {
+          <nz-alert class="modal-error" nzType="error" [nzMessage]="imageError()" role="alert" />
+        }
+        <div class="modal-actions">
+          <button nz-button type="button" [disabled]="changing()" (click)="closeImage()">Hủy</button
+          ><button
+            nz-button
+            nzType="primary"
+            type="button"
+            [nzLoading]="changing()"
+            [disabled]="changing() || !imageFile()"
+            (click)="upload()"
+          >
+            Lưu ảnh
+          </button>
+        </div>
+      }
+    </ng-container></nz-modal
+  >
+</section>

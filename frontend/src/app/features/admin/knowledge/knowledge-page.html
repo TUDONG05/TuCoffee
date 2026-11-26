@@ -1,0 +1,152 @@
+<h1>Tài liệu tri thức</h1>
+
+@if (actionError()) { <p role="alert" class="error">{{ actionError() }}</p> }
+@if (notice()) { <p role="status">{{ notice() }}</p> }
+
+<section class="knowledge-panel" aria-labelledby="documents-heading">
+  <h2 id="documents-heading">Danh sách tài liệu</h2>
+  <form class="controls document-filters" (ngSubmit)="search()">
+    <label>Tìm theo tiêu đề <input nz-input name="query" [(ngModel)]="query" maxlength="200"></label>
+    <label>Trạng thái sử dụng
+      <select name="enabled" [(ngModel)]="enabled">
+        <option value="">Tất cả</option>
+        <option value="true">Đang dùng</option>
+        <option value="false">Đã tắt</option>
+      </select>
+    </label>
+    <label>Định dạng
+      <select name="format" [ngModel]="format" (ngModelChange)="format = $event; search()">
+        <option value="">Tất cả</option>
+        <option value="txt">TXT</option>
+        <option value="markdown">Markdown</option>
+        <option value="pdf">PDF</option>
+        <option value="docx">Word (.docx)</option>
+      </select>
+    </label>
+    <div class="filter-actions">
+      <button nz-button type="submit">Tìm kiếm</button>
+      <button nz-button type="button" (click)="reload()">Làm mới</button>
+    </div>
+    <button nz-button nzType="primary" class="upload-trigger" type="button" [disabled]="saving()"
+      (click)="uploadOpen.set(true)">Tải lên</button>
+  </form>
+  @if (listError()) { <p role="alert" class="error">{{ listError() }}</p> }
+  @if (loading() && !result()) { <p role="status">Đang tải tài liệu…</p> }
+  @if (result(); as listing) {
+    <div class="document-table" role="region" aria-labelledby="documents-heading" tabindex="0">
+      <nz-table #documents [nzData]="listing.items" [nzFrontPagination]="false"
+        [nzShowPagination]="false" nzSize="middle" nzNoResult="Không tìm thấy tài liệu.">
+        <thead>
+          <tr>
+            <th scope="col">Tên tài liệu</th>
+            <th scope="col">Định dạng</th>
+            <th scope="col">Sử dụng</th>
+            <th scope="col">Xử lý bản mới nhất</th>
+            <th scope="col">Số chunk</th>
+            <th scope="col">Tải lên</th>
+            <th scope="col">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (doc of documents.data; track doc.id) {
+            <tr>
+              <td class="document-name">{{ doc.title }}</td>
+              <td>{{ formatLabel(doc.latestVersion.originalFilename) }}</td>
+              <td>
+                <nz-tag [nzColor]="doc.enabled ? 'success' : 'default'">{{ doc.enabled ? 'Đang dùng' : 'Đã tắt' }}</nz-tag>
+                <button nz-button nzType="link" type="button"
+                  [disabled]="saving() || (!doc.enabled && doc.activeVersionId === null)"
+                  (click)="toggleSource(doc)">{{ doc.enabled ? 'Tắt nguồn' : 'Bật nguồn' }}</button>
+              </td>
+              <td><nz-tag [nzColor]="doc.latestVersion.status === 'READY' ? 'success' : doc.latestVersion.status === 'FAILED' ? 'error' : 'processing'">
+                {{ statusLabel(doc.latestVersion.status) }}
+              </nz-tag></td>
+              <td>{{ doc.chunkCount }}</td>
+              <td class="updated-at">{{ doc.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="row-actions">
+                <button nz-button nzType="link" type="button" (click)="openPreview(doc)">Xem trước</button>
+                <button nz-button nzType="link" type="button"
+                  [disabled]="saving() || doc.latestVersion.status !== 'FAILED'" (click)="retry(doc)">Thử lại</button>
+                <button nz-button nzType="link" nzDanger type="button"
+                  [disabled]="saving()" (click)="deleteTarget.set(doc)">Xóa</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
+    </div>
+    <nav class="actions document-pagination" aria-label="Phân trang tài liệu">
+      <span>{{ listing.total }} tài liệu</span>
+      <nz-pagination [nzPageIndex]="page() + 1" [nzPageSize]="pageSize()" [nzTotal]="listing.total"
+        [nzPageSizeOptions]="pageSizes" nzShowSizeChanger nzSize="small"
+        (nzPageIndexChange)="$event !== page() + 1 && goTo($event - 1)" (nzPageSizeChange)="changePageSize($event)">
+      </nz-pagination>
+    </nav>
+  }
+</section>
+
+<nz-modal [nzVisible]="uploadOpen()" nzTitle="Tải tài liệu lên" [nzFooter]="null"
+  (nzOnCancel)="closeUpload()">
+  <ng-container *nzModalContent>
+    <form class="upload-form" (ngSubmit)="upload()">
+      <label class="upload-dropzone" [class.drag-active]="dragOverUpload()"
+        (dragover)="dragUpload($event, true)" (dragleave)="dragUpload($event, false)" (drop)="dropUpload($event)">
+        <input #uploadFile class="upload-file-input" type="file" name="file"
+          aria-label="Tệp TXT, Markdown, PDF hoặc Word" aria-describedby="upload-formats"
+          accept=".txt,.md,.markdown,.pdf,.docx" multiple (change)="chooseUploadFiles(uploadFile)">
+        <svg class="upload-cloud" width="48" height="48" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 18H6a4.5 4.5 0 0 1-.62-8.96A6.5 6.5 0 0 1 18 8a5 5 0 0 1 0 10h-1M12 20V10m-4 4 4-4 4 4"/>
+        </svg>
+        <strong>Kéo thả tệp vào đây hoặc <span>chọn tệp</span></strong>
+        <span id="upload-formats">Hỗ trợ PDF có văn bản, TXT, Markdown và DOCX. Tối đa 10 MiB mỗi tệp.</span>
+      </label>
+      @if (uploadFiles().length) {
+        <ul class="upload-file-list" aria-label="Tệp đã chọn">
+          @for (file of uploadFiles(); track $index) {
+            <li>
+              <span>{{ file.name }}</span>
+              <button nz-button nzType="link" type="button" [attr.aria-label]="'Bỏ tệp ' + file.name"
+                (click)="removeUploadFile($index)">Bỏ</button>
+            </li>
+          }
+        </ul>
+      }
+      <div class="upload-actions">
+        <button nz-button type="button" (click)="closeUpload()">Hủy</button>
+        <button nz-button nzType="primary" [disabled]="saving() || !uploadFiles().length" type="submit">Tải lên</button>
+      </div>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<nz-modal [nzVisible]="previewTarget() !== null" [nzTitle]="previewTarget()?.title ?? 'Xem trước'"
+  [nzFooter]="null" (nzOnCancel)="openPreview(null)">
+  <ng-container *nzModalContent>
+    @if (previewLoading()) { <p role="status">Đang tải nội dung…</p> }
+    @if (previewError()) { <p role="alert" class="error">{{ previewError() }}</p> }
+    @if (preview(); as content) {
+      @for (excerpt of content.excerpts; track $index) {
+        <pre class="preview-excerpt">{{ excerpt }}</pre>
+      } @empty {
+        <p>Chưa có nội dung đã lập chỉ mục để xem trước.</p>
+      }
+      @if (content.truncated) { <p>Chỉ hiển thị các đoạn đầu của tài liệu.</p> }
+    }
+  </ng-container>
+</nz-modal>
+
+<nz-modal [nzVisible]="publishTarget() !== null" nzTitle="Bật nguồn cho chatbot"
+  nzOkText="Bật nguồn" nzCancelText="Hủy" (nzOnCancel)="publishTarget.set(null)" (nzOnOk)="confirmPublish()">
+  <ng-container *nzModalContent>
+    <p>Xác nhận tài liệu “{{ publishTarget()?.title }}” được phép dùng để trả lời khách truy cập.</p>
+  </ng-container>
+</nz-modal>
+
+<nz-modal [nzVisible]="deleteTarget() !== null" nzTitle="Xác nhận xóa"
+  nzOkText="Xác nhận xóa" nzCancelText="Hủy" [nzOkDanger]="true"
+  (nzOnCancel)="deleteTarget.set(null)" (nzOnOk)="confirmDelete()">
+  <ng-container *nzModalContent>
+    <p>Tài liệu “{{ deleteTarget()?.title }}” sẽ bị xóa khỏi danh sách và ngừng sử dụng.</p>
+  </ng-container>
+</nz-modal>

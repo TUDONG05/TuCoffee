@@ -1,0 +1,100 @@
+{
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ],
+  "info": {
+    "description": "Companion to openapi.yaml. Google credentials are runtime inputs only. Get config nonce, request a GIS credential with that nonce in your browser, then use it here with matching cookie. Do not save tokens/passwords in this file.",
+    "name": "TuCoffee - Google login",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/auth/csrf"
+      },
+      "name": "Get CSRF",
+      "event": [
+        {
+          "script": {
+            "exec": [
+              "pm.test(\"CSRF is available\", () =\u003e pm.response.to.have.status(200));",
+              "pm.variables.set(\"csrf\", pm.response.json().token);"
+            ],
+            "type": "text/javascript"
+          },
+          "listen": "test"
+        }
+      ]
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/auth/google/config"
+      },
+      "name": "Get Google config",
+      "event": [
+        {
+          "script": {
+            "exec": [
+              "pm.test(\"Google config is available\", () =\u003e pm.response.to.have.status(200));",
+              "const config = pm.response.json();",
+              "pm.test(\"Configuration reports enabled state\", () =\u003e pm.expect(config.enabled).to.be.a(\"boolean\"));",
+              "pm.test(\"Config is not cached\", () =\u003e pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));",
+              "if (config.enabled) { pm.variables.set(\"google_nonce\", config.nonce); pm.variables.set(\"google_client_id\", config.clientId); }"
+            ],
+            "type": "text/javascript"
+          },
+          "listen": "test"
+        }
+      ]
+    },
+    {
+      "name": "Google login - runtime credential",
+      "request": {
+        "body": {
+          "raw": "{\"credential\":\"{{google_credential}}\"}",
+          "mode": "raw"
+        },
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/auth/google",
+        "description": "Supply a fresh Google credential bound to google_nonce and the nonce cookie from config. Success sets existing refresh cookie. A collision returns GOOGLE_LINK_REQUIRED; do not treat 409 as login success.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrf}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Confirm existing account link - runtime inputs",
+      "request": {
+        "body": {
+          "raw": "{\"credential\":\"{{google_credential}}\",\"currentPassword\":\"{{current_password}}\"}",
+          "mode": "raw"
+        },
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/auth/google",
+        "description": "Use runtime secret variables only; same credential and cookie must still be within the 5-minute nonce lifetime. Never save an exported resolved password or Google token.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrf}}"
+          }
+        ]
+      }
+    }
+  ]
+}

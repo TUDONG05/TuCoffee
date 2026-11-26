@@ -1,37 +1,68 @@
-# TuCoffee — Spring Boot và Angular
+# TuCoffee
 
-Ứng dụng TuCoffee đang được phát triển từng giai đoạn. **Hiện chỉ triển khai giai đoạn 1: bộ khung và kết nối Angular → Spring Boot → MySQL.**
+TuCoffee là ứng dụng bán cà phê trực tuyến và quản lý cửa hàng.
 
-Chưa có chức năng đăng nhập, thực đơn, giỏ hàng hoặc quản trị. Tích điểm và khuyến mãi thuộc giai đoạn sau.
+- **Khách hàng** có thể xem thực đơn, tìm món, đặt hàng, thanh toán bằng VietQR hoặc COD, theo dõi đơn và đánh giá món đã mua.
+- **Quản trị viên** có thể quản lý sản phẩm, danh mục, tài khoản và đơn hàng, kiểm duyệt đánh giá, bán tại quầy (POS), in hóa đơn và xem doanh thu.
 
-## Công nghệ đã chọn
+## Công nghệ
+
+![Java 21](https://img.shields.io/badge/Java-21-E76F00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot 4.1.2](https://img.shields.io/badge/Spring%20Boot-4.1.2-6DB33F?style=flat-square&logo=springboot&logoColor=white)
+![Maven 3.10.0](https://img.shields.io/badge/Maven-3.10.0-C71A36?style=flat-square&logo=apachemaven&logoColor=white)
+![MySQL 8.0.46](https://img.shields.io/badge/MySQL-8.0.46-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Angular 22.2.3](https://img.shields.io/badge/Angular-22.2.3-DD0031?style=flat-square&logo=angular&logoColor=white)
+![NG-ZORRO 22.1.2](https://img.shields.io/badge/NG--ZORRO-22.1.2-0170FE?style=flat-square&logo=antdesign&logoColor=white)
+![RxJS 7.8](https://img.shields.io/badge/RxJS-7.8-B7178C?style=flat-square&logo=reactivex&logoColor=white)
+![Node.js 24.18.0](https://img.shields.io/badge/Node.js-24.18.0-339933?style=flat-square&logo=nodedotjs&logoColor=white)
 
 | Thành phần | Phiên bản |
 |---|---|
 | Java | 21 |
 | Spring Boot | 4.1.2 |
 | Maven Wrapper | 3.10.0 |
-| MySQL | 8.4.13 qua Docker |
+| MySQL | 8.0.46 cài trực tiếp trên máy, cổng 3306 |
 | Angular | 22.2.3; CLI/build 22.2.4 |
+| Giao diện Angular | NG-ZORRO 22.1.2 (Ant Design), locale tiếng Việt `vi_VN` |
+| Luồng dữ liệu frontend | RxJS 7.8 |
 | Node.js | 24.18.0 trong môi trường kiểm tra/CI |
 
 Dependency frontend được khóa trong `frontend/package-lock.json`; backend dùng dependency management của Spring Boot và Maven Wrapper. Không cần cài Angular CLI hoặc Maven toàn cục.
 
-## Cấu trúc hiện tại
+Frontend dùng NG-ZORRO trong các component standalone cho form, input, nút, thông báo, checkbox và bộ lọc tài khoản. Chỉ nạp stylesheet của các thành phần đang dùng, dùng tông nâu espresso, caramel và kem theo ảnh tham chiếu. Trang quản trị dùng RxJS debounce 300ms cho bộ lọc, `switchMap` để hủy truy vấn danh sách cũ, `exhaustMap` để chặn thao tác khóa/mở trùng và `takeUntilDestroyed` để dọn subscription khi rời trang.
+
+## Cấu trúc dự án
 
 ```text
-backend/                     Spring Boot, cấu hình MySQL/Flyway, health check
-frontend/                    Angular standalone, bộ khung và trang kết nối
-infrastructure/compose.local.yml
+backend/                     Spring Boot monolith, Spring Data JPA, MySQL/Flyway
+frontend/                    Angular standalone, tài khoản, thực đơn, đặt hàng, POS và quản trị
+scripts/                     Chuẩn bị môi trường và chạy E2E với MySQL native
 docs/api/openapi.yaml         Hợp đồng API đã có
 docs/design-guidelines.md     Quy ước giao diện
 ```
 
+Backend chia theo lớp trực tiếp dưới `com.tuscoffee`:
+
+```text
+config/             Cấu hình Spring và bảo mật
+controller/         HTTP endpoints
+dto/                Request/response và kết quả trao đổi giữa các lớp
+entity/             JPA entity ánh xạ các bảng MySQL
+repository/         Interface kế thừa JpaRepository
+service/            Nghiệp vụ và transaction
+security/           JWT, filter và principal
+validation/         Kiểm tra dữ liệu
+bootstrap/          Lệnh tạo ADMIN
+exception/   Xử lý lỗi chung
+```
+
+Backend dùng Spring Data JPA. `entity` gồm `User`, `AuthSession`, `AuthTokenHistory`, `AuthRateLimit`, `IdentityLock`. Service gọi repository; controller trả DTO như `UserResponse`, không trả entity hoặc password hash trực tiếp.
+
 ## Yêu cầu trước khi chạy
 
 - JDK 21 và Node.js 24.18.0; npm đi kèm Node.
-- Docker Desktop đang chạy Linux containers; lần đầu cần mạng tải image/dependency.
-- Các cổng mặc định: frontend 4200, backend 8080, MySQL 3307 trên `127.0.0.1`.
+- MySQL Server cài trực tiếp và đang chạy; `mysql` CLI có trong PATH.
+- Các cổng mặc định: frontend 4200, backend 8080, MySQL 3306 trên `127.0.0.1`.
 
 ## Chạy local trên Windows / PowerShell
 
@@ -39,33 +70,42 @@ Mở terminal tại thư mục gốc dự án.
 
 ### 1. Cấu hình môi trường
 
-Nếu chưa có `.env`:
+Khởi tạo hoặc bổ sung cấu hình còn thiếu; script giữ nguyên mật khẩu và khóa đã có:
 
 ```powershell
-Copy-Item .env.example .env
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/initialize-local-env.ps1
 ```
 
-Đổi `MYSQL_PASSWORD` và `MYSQL_ROOT_PASSWORD` trước khi khởi tạo MySQL. Trong phiên triển khai, `.env` local đã được tạo với mật khẩu phát triển ngẫu nhiên; giữ nguyên nếu đã có. File này được Git bỏ qua.
+Script tạo `.env` từ mẫu nếu chưa có và sinh khóa JWT Base64 tối thiểu 32 byte. Điền `MYSQL_USER` và `MYSQL_PASSWORD` đúng với tài khoản MySQL đã có; script không thay đổi mật khẩu database. File `.env` được Git bỏ qua. `ExecutionPolicy Bypass` chỉ áp dụng tiến trình chạy script này.
 
 Spring Boot đọc `.env` ở thư mục gốc khi chạy từ `backend/` hoặc từ thư mục gốc; cũng hỗ trợ biến môi trường được truyền trực tiếp. Đây là cấu hình import tường minh trong `application.yml`, không dựa vào Spring tự đọc `.env`.
 
 | Biến | Ý nghĩa |
 |---|---|
 | MYSQL_HOST | Host DB nhìn từ ứng dụng, mặc định `127.0.0.1` |
-| MYSQL_PORT | Cổng DB local, mặc định `3307` |
+| MYSQL_PORT | Cổng DB local, mặc định `3306` |
 | MYSQL_DATABASE | Tên database, mặc định `tu_coffee` |
 | MYSQL_USER / MYSQL_PASSWORD | Tài khoản ứng dụng MySQL; không dùng root |
-| MYSQL_ROOT_PASSWORD | Chỉ dùng khởi tạo/quản trị container MySQL |
 | SERVER_ADDRESS / SERVER_PORT | Địa chỉ và cổng API local |
+| SPRING_PROFILES_ACTIVE | `local` tường minh cho HTTP local; không dùng profile này khi triển khai HTTPS |
+| AUTH_JWT_SECRET | Khóa Base64 ngẫu nhiên, tối thiểu 32 byte sau giải mã; không commit |
+| AUTH_ALLOWED_ORIGINS | Danh sách origin tin cậy, phân tách bằng dấu phẩy |
 
-### 2. Chạy MySQL
+### 2. Chuẩn bị MySQL cài trên máy
 
 ```powershell
-docker compose --env-file .env -f infrastructure/compose.local.yml up -d --wait
-docker compose --env-file .env -f infrastructure/compose.local.yml ps
+Get-Service MySQL80
+mysql --host=127.0.0.1 --port=3306 --user=coffee --password
 ```
 
-DB dùng volume `mysql-data` của dự án Compose. Đổi mật khẩu trong `.env` sau khi volume đã được khởi tạo không tự đổi mật khẩu trong MySQL; cần đổi bằng SQL phù hợp rồi cập nhật cấu hình, không xóa volume để xử lý dữ liệu cần giữ.
+Tên service có thể khác tùy bản cài đặt. Nếu chưa có database, tạo bằng tài khoản có quyền quản trị:
+
+```sql
+CREATE DATABASE IF NOT EXISTS tu_coffee
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+```
+
+Tài khoản ứng dụng cần quyền tạo/cập nhật bảng và đọc/ghi trong `tu_coffee` để Flyway chạy migration. Backend kết nối `jdbc:mysql://127.0.0.1:3306/tu_coffee`. Không cần Docker.
 
 ### 3. Chạy backend — terminal thứ nhất
 
@@ -74,7 +114,7 @@ Set-Location backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Flyway tự chạy `V1__baseline.sql` lần đầu và lưu lịch sử trong `flyway_schema_history`. Baseline hiện chưa tạo bảng nghiệp vụ. Hibernate chỉ validate schema, không tự tạo/xóa bảng.
+Flyway áp dụng các migration theo thứ tự và lưu lịch sử trong `flyway_schema_history`. Hibernate kiểm tra entity khớp với schema.
 
 Kiểm tra từ terminal khác:
 
@@ -94,22 +134,35 @@ npm start
 
 - Trang khởi đầu: [http://localhost:4200](http://localhost:4200).
 - Trang phát triển kiểm tra kết nối: [http://localhost:4200/dev/status](http://localhost:4200/dev/status).
+- Tài khoản và khôi phục mật khẩu: `/register`, `/login`, `/profile`, `/forgot-password`.
+- Thực đơn và đặt hàng: `/menu`, `/products/:id`, `/cart`, `/checkout`, `/orders`.
+- Quản trị: `/admin`, với các trang sản phẩm, danh mục, tài khoản, đơn hàng, đánh giá, POS và doanh thu.
 - Angular gọi `/api/v1/health` qua dev proxy; URL backend không nằm trong component.
 - Nếu đổi cổng backend, cập nhật target trong `frontend/src/proxy.conf.json` rồi khởi động lại dev server.
 
 ### 5. Dừng local
 
-Nhấn `Ctrl+C` trong terminal backend và frontend. Để dừng MySQL mà giữ dữ liệu:
-
-```powershell
-docker compose --env-file .env -f infrastructure/compose.local.yml stop
-```
-
-Không dùng `down -v` cho volume cần giữ dữ liệu.
+Nhấn `Ctrl+C` trong terminal backend và frontend. MySQL chạy dưới dạng Windows service, có thể tiếp tục dùng cho các ứng dụng khác.
 
 ## Kiểm tra và build
 
-MySQL phải sẵn sàng và cấu hình kết nối đúng trước khi chạy kiểm tra backend. Các kiểm tra giai đoạn 1 chỉ đọc kết nối/lịch sử Flyway, không xóa dữ liệu. CI dùng database tạm riêng.
+Kiểm tra backend và E2E dùng MySQL native. Mỗi lần chạy tạo một schema tên `tu_coffee_test_<mã ngẫu nhiên>`, rồi chỉ dọn schema do lần chạy đó tạo. Không dùng database phát triển. Cần tài khoản kiểm thử riêng qua `TEST_MYSQL_USER`, `TEST_MYSQL_PASSWORD`; host/port tùy chọn qua `TEST_MYSQL_HOST`, `TEST_MYSQL_PORT` (mặc định `127.0.0.1:3306`).
+
+Tạo tài khoản kiểm thử bằng công cụ quản trị MySQL và cấp quyền trong phạm vi schema test. Với cấu hình `partial_revokes=OFF`, mẫu quyền theo [tài liệu MySQL](https://dev.mysql.com/doc/refman/8.0/en/grant.html):
+
+```sql
+GRANT ALL PRIVILEGES ON `tu\_coffee\_test\_%`.* TO 'coffee_test'@'localhost';
+```
+
+Nếu server bật `partial_revokes`, cần cấu hình quyền/schema kiểm thử phù hợp trước khi chạy; không dùng tài khoản ứng dụng làm tài khoản kiểm thử.
+
+Đặt thông tin tài khoản kiểm thử trong terminal (mật khẩu nhập kín):
+
+```powershell
+$env:TEST_MYSQL_USER = 'coffee_test'
+$taskTestCredential = Get-Credential -UserName $env:TEST_MYSQL_USER -Message 'Tài khoản MySQL kiểm thử'
+$env:TEST_MYSQL_PASSWORD = $taskTestCredential.GetNetworkCredential().Password
+```
 
 Trên Windows, nếu đang chạy backend bằng `java -jar target/...jar`, dừng tiến trình đó trước khi chạy `verify` hoặc `package`: JVM đang giữ file sẽ khiến Maven không thể thay JAR lúc đóng gói. Sau khi build xong có thể khởi động lại. Nếu PowerShell chặn `npm.ps1`, dùng `npm.cmd` thay cho `npm` trong các lệnh bên dưới.
 
@@ -127,12 +180,63 @@ npm test -- --watch=false
 npm run build
 ```
 
-Smoke test trên trình duyệt cần backend/MySQL đang chạy; Playwright tự chạy frontend nếu chưa có:
+Kiểm tra qua trình duyệt với schema tạm trên MySQL native cổng 3306, backend 8081, Angular 4201 và ADMIN ngẫu nhiên (build backend trước, giữ các biến `TEST_MYSQL_*` trong terminal):
 
 ```powershell
 npx playwright install chromium
-npm run e2e
+# Quay lại thư mục gốc dự án:
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/test-identity-e2e.ps1
 ```
 
-Workflow `.github/workflows/ci.yml` chuẩn bị kiểm tra backend với MySQL, frontend và smoke test. Workflow chỉ thực sự chạy trên GitHub sau khi có repository/commit được đẩy lên; hiện chưa cấu hình remote hoặc push tự động.
+Script E2E tắt Turnstile riêng cho tiến trình kiểm thử, quản lý frontend/backend riêng và kiểm tra catalog/ảnh sau restart cùng seed lần hai. Có thể thêm `-PlaywrightArgs '--workers=2'` để giới hạn tải trên máy local.
 
+Workflow `.github/workflows/ci.yml` cấu hình kiểm tra backend với MySQL, unit test và build frontend, cùng kiểm thử trình duyệt. Xem kết quả trên GitHub Actions theo commit cần kiểm tra.
+
+## Tạo tài khoản quản trị
+
+Không có ADMIN hoặc mật khẩu mặc định. Sau khi đóng gói backend, chạy từ thư mục gốc trong terminal tương tác và nhập mật khẩu kín khi được hỏi:
+
+```powershell
+java -jar backend/target/tu-coffee-api-0.0.1-SNAPSHOT.jar --spring.profiles.active=bootstrap --spring.main.web-application-type=none --bootstrap.admin.name="Quản trị viên" --bootstrap.admin.email="admin@example.com" --debug=false
+```
+
+Có thể truyền mật khẩu qua biến môi trường `BOOTSTRAP_ADMIN_PASSWORD` dùng một lần rồi xóa biến. Lệnh không mở web server, không nâng quyền tài khoản đã tồn tại. Mật khẩu tối thiểu 10 ký tự, tối đa 72 byte UTF-8.
+
+## Quy tắc phiên đăng nhập
+
+- Access JWT 15 phút chỉ giữ trong bộ nhớ trình duyệt; refresh cookie HttpOnly, SameSite=Strict, thời hạn tuyệt đối 7 ngày.
+- Refresh được rotate; dùng lại token cũ thu hồi cả phiên. Nếu mất phản hồi refresh không rõ kết quả, ứng dụng yêu cầu đăng nhập lại.
+- Logout thu hồi phiên hiện tại; đổi mật khẩu thu hồi mọi phiên cũ và cấp phiên mới cho trình duyệt hiện tại. Khóa tài khoản thu hồi toàn bộ phiên; mở khóa cần đăng nhập lại.
+- Backend kiểm tra trạng thái tài khoản, quyền và phiên trong database; guard Angular chỉ hỗ trợ điều hướng.
+- Mọi API ghi cần CSRF; mặc định cookie `Secure=true`, chỉ profile `local` dùng HTTP. Triển khai cần HTTPS, khóa riêng và allowlist origin phù hợp.
+## Đăng nhập Google và khôi phục mật khẩu
+
+- Để bật đăng nhập Google, đặt `GOOGLE_CLIENT_ID` trong `.env` và thêm origin của frontend trên Google Cloud. Xem [hướng dẫn cấu hình Google](docs/api/google-login.md).
+- Để gửi OTP khôi phục mật khẩu qua email, điền cấu hình `SMTP_*` theo [tệp mẫu môi trường](.env.example) và khởi động lại backend.
+
+## Cloudflare Turnstile
+
+Đã tích hợp xác minh chống bot cho email login/register; mặc định tắt khi chưa cấu hình. Xem [hướng dẫn cấu hình và kiểm chứng](docs/api/turnstile.md). Bật TURNSTILE_ENABLED, điền Site Key/Secret Key và hostnames trong `.env`, rồi restart backend.
+
+## Quản lý tài liệu tri thức
+
+Đăng nhập bằng tài khoản ADMIN và mở `/admin/knowledge`. Có thể tải nhiều tệp TXT UTF-8, Markdown, PDF có văn bản hoặc Word (.docx), tối đa 10 MiB mỗi tệp. Ứng dụng lấy tiêu đề từ tên tệp và tự xếp hàng lập chỉ mục. Dùng cột **Thao tác** để xem trước nội dung đã lập chỉ mục, thử lại tài liệu lỗi hoặc xóa tài liệu.
+
+Đặt `RAG_STORAGE_ROOT` tới thư mục riêng ngoài web root. Để bắt đầu lập chỉ mục, cấu hình endpoint embedding tương thích OpenAI qua `RAG_EMBEDDING_URL`, model, số chiều và khóa nếu nhà cung cấp yêu cầu. Sau đó đặt `RAG_WORKER_ENABLED=true` và khởi động lại backend. Chỉ nhập tài liệu được phép gửi tới nhà cung cấp đã cấu hình. Xem [các biến RAG](.env.example).
+
+Khi cần tạm dừng xử lý, đặt `RAG_WORKER_ENABLED=false` và khởi động lại backend. Sao lưu schema MySQL và toàn bộ thư mục `RAG_STORAGE_ROOT` cùng thời điểm khi backend đã dừng để giữ file gốc khớp với các phiên bản trong DB. Khôi phục cả hai trước khi khởi động lại.
+
+## Chat tư vấn trên trang khách hàng
+
+Bật `RAG_CHAT_ENABLED=true` trong `.env`, cấu hình model trả lời qua `RAG_CHAT_MODEL` và endpoint qua `RAG_CHAT_URL`. Có thể dùng lại key của embedding hoặc đặt `RAG_CHAT_API_KEY` riêng. Các biến còn lại và hạn mức có trong [tệp mẫu cấu hình](.env.example). Sau khi khởi động lại backend, khách có thể bấm logo ở góc dưới bên phải để hỏi đáp mà không cần đăng nhập.
+
+Để một tài liệu xuất hiện trong câu trả lời, chờ trạng thái **Sẵn sàng** rồi chọn **Bật nguồn** ở cột **Sử dụng**. Chỉ bật tài liệu được phép dùng để trả lời khách. Gợi ý món và giá lấy từ catalog hiện tại.
+
+## Thiết kế database toàn dự án
+
+Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập thực đơn mặc định tắt và hỗ trợ profile `local` hoặc `catalog-import`. Với Docker Compose, chạy import một lần mà không bật HTTP trong tiến trình import:
+
+```bash
+docker compose -p tucoffee build api
+docker compose -p tucoffee run --rm --no-deps api --spring.profiles.active=catalog-import --spring.main.web-application-type=none --catalog.seed.enabled=true
+```

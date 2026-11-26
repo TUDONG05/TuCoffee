@@ -1,0 +1,74 @@
+﻿@use './catalog/catalog-admin';
+
+.filter-bar {
+  grid-template-columns: minmax(0, 1fr) 12rem auto;
+}
+.filter-bar .field {
+  margin: 0;
+}
+.loading-message {
+  color: var(--muted);
+}
+.user-info {
+  min-width: 0;
+}
+.user-info strong,
+.user-info > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.user-info > span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.self-label {
+  padding: 0.1rem 0.35rem;
+  font-size: 0.7rem;
+  background: var(--brand-soft);
+  font-weight: 400;
+}
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+}
+.empty-state h2 {
+  font-size: 1.1rem;
+}
+.confirm-panel {
+  border-left: 3px solid var(--brand);
+  padding: 1rem 1.25rem;
+  background: var(--brand-soft);
+  margin: 1.5rem 0;
+}
+.confirm-panel h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.confirm-panel p {
+  overflow-wrap: anywhere;
+}
+.confirm-actions {
+  justify-content: start;
+}
+nz-alert {
+  display: block;
+  margin-top: 1rem;
+}
+@media (max-width: 859px) {
+  .filter-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .filter-bar > button {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  .filter-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .filter-bar > * {
+    grid-column: 1 / -1;
+  }
+}

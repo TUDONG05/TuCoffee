@@ -2,7 +2,12 @@
   <p class="eyebrow">DÀNH CHO PHÁT TRIỂN</p>
   <h1 id="status-title">Kiểm tra kết nối</h1>
   <p class="description">Kiểm tra Angular → proxy → Spring Boot → MySQL trong môi trường local.</p>
-  <div class="health-panel" aria-live="polite" aria-atomic="true" [attr.aria-busy]="state() === 'loading'">
+  <div
+    class="health-panel"
+    aria-live="polite"
+    aria-atomic="true"
+    [attr.aria-busy]="state() === 'loading'"
+  >
     @switch (state()) {
       @case ('loading') {
         <h2>Đang kiểm tra…</h2>
@@ -22,6 +27,16 @@
       }
     }
   </div>
-  <button type="button" (click)="check()" [disabled]="state() === 'loading'">Kiểm tra lại</button>
+  <button
+    nz-button
+    nzType="primary"
+    nzSize="large"
+    [nzLoading]="state() === 'loading'"
+    type="button"
+    (click)="check()"
+    [disabled]="state() === 'loading'"
+  >
+    Kiểm tra lại
+  </button>
   <p class="endpoint">GET <code>/api/v1/health</code></p>
 </section>

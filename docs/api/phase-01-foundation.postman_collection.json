@@ -1,0 +1,159 @@
+{
+  "info": {
+    "_postman_id": "2ca9c19d-5054-48c7-9b2b-f4fc2d571601",
+    "name": "TuCoffee - Phase 1 - Foundation",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Kiểm tra API nền tảng phase 1: GET /api/v1/health.\n\nCách dùng:\n1. Import file JSON vào Postman.\n2. Chạy MySQL và backend; baseUrl mặc định http://127.0.0.1:8080.\n3. Run collection: mặc định chỉ chạy ca backend UP.\n4. Muốn kiểm tra proxy: chạy Angular ở http://localhost:4200 và đặt testProxy=true.\n5. Muốn kiểm tra DB mất kết nối: khởi động backend thành công trước, sau đó tự dừng MySQL và đặt testDatabaseDown=true. Ca UP/proxy sẽ tự bỏ qua, chỉ ca DOWN được chạy. Collection không tự dừng dịch vụ.\n6. Khởi động lại MySQL, đặt testDatabaseDown=false rồi chạy lại để kiểm tra phục hồi.\n\nKhông cần token hoặc tài khoản. Mỗi request kiểm tra HTTP status, Content-Type JSON và payload chính xác chỉ chứa status. Nếu backend tắt hẳn thì đó là lỗi kết nối, không phải HTTP 503.\n\nPhạm vi: Postman kiểm tra API và đường đi qua proxy; không xác nhận giao diện, CORS của trình duyệt, lịch sử Flyway hoặc dữ liệu tồn tại sau restart. Đăng ký/đăng nhập/hồ sơ thuộc phase 2."
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080",
+      "type": "string",
+      "description": "Địa chỉ backend, không thêm dấu / cuối."
+    },
+    {
+      "key": "frontendUrl",
+      "value": "http://localhost:4200",
+      "type": "string",
+      "description": "Địa chỉ Angular dev server có proxy /api."
+    },
+    {
+      "key": "testProxy",
+      "value": "false",
+      "type": "string",
+      "description": "Đặt true khi Angular đang chạy để kiểm tra qua proxy."
+    },
+    {
+      "key": "testDatabaseDown",
+      "value": "false",
+      "type": "string",
+      "description": "Chỉ đặt true sau khi backend đã khởi động và bạn tự dừng MySQL. Chế độ này chỉ chạy ca DOWN."
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Backend va MySQL san sang - 200 UP",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (String(pm.variables.get('testDatabaseDown')).toLowerCase() === 'true') {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200 khi backend va MySQL san sang', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Content-Type la application/json', function () {",
+              "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i);",
+              "});",
+              "pm.test('Payload chi co status UP, khong lo chi tiet he thong', function () {",
+              "  pm.expect(pm.response.json()).to.deep.equal({ status: 'UP' });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/health",
+        "description": "Ca mặc định. Backend và MySQL cần đang chạy. Endpoint công khai, không gửi Authorization."
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Angular proxy toi backend - 200 UP (tuy chon)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (String(pm.variables.get('testProxy')).toLowerCase() !== 'true' || String(pm.variables.get('testDatabaseDown')).toLowerCase() === 'true') {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Proxy tra HTTP 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Proxy tra JSON, khong phai trang HTML Angular', function () {",
+              "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i);",
+              "});",
+              "pm.test('Proxy chuyen tiep dung payload status UP', function () {",
+              "  pm.expect(pm.response.json()).to.deep.equal({ status: 'UP' });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{frontendUrl}}/api/v1/health",
+        "description": "Đặt testProxy=true; chạy cả Angular, backend và MySQL. Kiểm tra HTTP qua dev proxy, không thay thế kiểm tra trình duyệt."
+      },
+      "response": []
+    },
+    {
+      "name": "03 - MySQL mat ket noi sau startup - 503 DOWN (thu cong)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (String(pm.variables.get('testDatabaseDown')).toLowerCase() !== 'true') {",
+              "  pm.execution.skipRequest();",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 503 khi MySQL khong san sang', function () {",
+              "  pm.response.to.have.status(503);",
+              "});",
+              "pm.test('Content-Type van la application/json', function () {",
+              "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i);",
+              "});",
+              "pm.test('Payload chi co status DOWN, khong lo cau hinh DB', function () {",
+              "  pm.expect(pm.response.json()).to.deep.equal({ status: 'DOWN' });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/health",
+        "description": "Chỉ bật testDatabaseDown=true sau khi backend khởi động thành công rồi MySQL bị dừng. Giữ backend chạy. Collection không thay đổi database hoặc dịch vụ; tự khởi động lại MySQL sau ca này."
+      },
+      "response": []
+    }
+  ]
+}

@@ -1,0 +1,2423 @@
+{
+  "info": {
+    "_postman_id": "5a352e72-76e8-49df-8b15-78d52728ad02",
+    "name": "TuCoffee - Backend chuc nang tai khoan (Phase 2)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "TEST CHỨC NĂNG BACKEND HIỆN CÓ: đăng ký, đăng nhập, hồ sơ, đổi mật khẩu, refresh, đăng xuất, phân quyền và quản trị tài khoản. Đây là phase 2 theo kế hoạch dự án.\n\nCÁCH CHẠY:\n1. Chạy MySQL và backend bằng profile local (cookie Secure=false cho HTTP). Không cần chạy Angular.\n2. Import JSON vào Postman; baseUrl mặc định http://127.0.0.1:8080, không thêm / cuối.\n3. Chọn Run collection và chạy toàn bộ theo thứ tự, không chạy song song. Mỗi lần chạy tự tạo email và mật khẩu mẫu riêng. Các biến mẫu/token chỉ lưu trong scope phiên chạy.\n4. Request ghi tự gọi GET /auth/csrf và lấy cookie/token mới. Giữ cookie jar mặc định của Postman; không tắt cookie. Không tự retry refresh hoặc các thao tác ghi khi mạng lỗi không rõ kết quả.\n5. Mặc định bỏ qua nhóm ADMIN. Muốn test admin, điền adminEmail và adminPassword trong Postman Environment (ưu tiên để không ghi mật khẩu thật vào file). Phải điền cả hai; không có ADMIN mặc định.\n6. Chạy xong giữ lại tài khoản mẫu trong DB vì chưa có API xóa tài khoản. Nhóm ADMIN chỉ tìm/khóa/mở tài khoản mẫu vừa tạo; không khóa tài khoản khác. Collection không tạo/nâng quyền ADMIN, không sửa schema hoặc dừng dịch vụ.\n\nCác kiểm tra âm mong đợi 400/401/403/409 là ca đạt nếu đúng mã. Phần ADMIN gồm phân trang/tìm kiếm/lọc trạng thái, kiểm tra tham số sai, cấm tự khóa, khóa thu hồi phiên và mở lại tài khoản. Nếu ADMIN lỗi đăng nhập, không dùng token thiếu để tiếp tục thao tác quản trị.\n\nGiới hạn: chưa bao phủ rate limit 5 lần/15 phút, token replay, phiên hết hạn theo thời gian và tranh chấp transaction; các trường hợp này có trong kiểm thử Java riêng.\nTurnstile: khi bật, mỗi login/register cần token mới tại biến turnstileToken (không dùng lại). Tắt trong kiểm thử offline hoặc dùng test keys theo docs/api/turnstile.md; Google/refresh/logout không yêu cầu token."
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "",
+      "type": "string",
+      "description": "Tùy chọn: email ADMIN có sẵn. Ưu tiên đặt trong Environment."
+    },
+    {
+      "key": "adminPassword",
+      "value": "",
+      "type": "string",
+      "description": "Tùy chọn: mật khẩu ADMIN. Không lưu mật khẩu thật trong file JSON."
+    },
+    {
+      "key": "turnstileToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Khoi tao va dang ky",
+      "item": [
+        {
+          "name": "01.01 - Khoi tao du lieu mau va lay CSRF",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = pm.variables.replaceIn('{{$randomUUID}}').replace(/-/g, '');",
+                  "pm.variables.set('testEmail', 'postman-' + suffix + '@example.test');",
+                  "pm.variables.set('testPassword', 'Tc-A1!' + suffix);",
+                  "pm.variables.set('newPassword', 'Tc-B2!' + suffix);",
+                  "pm.variables.set('userAccessToken', '');",
+                  "pm.variables.set('adminAccessToken', '');",
+                  "pm.variables.set('oldAccessToken', '');",
+                  "pm.variables.set('_adminEnabled', (pm.variables.get('adminEmail') && pm.variables.get('adminPassword')) ? 'true' : 'false');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('CSRF token san sang', function () {",
+                  "  pm.expect(pm.response.json().headerName).to.equal('X-XSRF-TOKEN');",
+                  "  pm.expect(pm.response.json().token).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/csrf"
+          },
+          "response": []
+        },
+        {
+          "name": "01.02 - Dang ky tai khoan USER",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('USER duoc tao dung email va dang hoat dong', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.email).to.equal(pm.variables.get('testEmail'));",
+                  "  pm.expect(body.role).to.equal('USER');",
+                  "  pm.expect(body.active).to.equal(true);",
+                  "});",
+                  "if (pm.response.code === 201) pm.variables.set('testUserId', String(pm.response.json().id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Postman\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "01.03 - Tu choi email dang ky trung",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(409);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('EMAIL_EXISTS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Postman\",\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "01.04 - Tu choi email khong hop le",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(400);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Postman\",\n  \"email\": \"not-an-email\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "01.05 - Chua dang nhap khong xem duoc ho so",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  ",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Dang nhap va ho so",
+      "item": [
+        {
+          "name": "02.01 - Sai mat khau khong dang nhap duoc",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"Wrong-password-for-test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02.02 - Dang nhap USER",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().user;",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('AuthResponse dung cau truc va access JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('accessToken', 'expiresIn', 'user');",
+                  "  pm.expect(body.accessToken).to.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Refresh cookie HttpOnly, SameSite Strict, dung path', function () {",
+                  "  const cookie = pm.response.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; }).find(function (value) { return /^tucoffee_refresh=/.test(value); });",
+                  "  pm.expect(cookie).to.be.a('string');",
+                  "  pm.expect(cookie).to.match(/;\\s*HttpOnly(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*SameSite=Strict(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*Path=\\/api\\/v1\\/auth(?:;|$)/i);",
+                  "});",
+                  "if (pm.response.code === 200 && pm.response.json().accessToken) {",
+                  "  pm.variables.set('userAccessToken', pm.response.json().accessToken);",
+                  "}",
+                  "",
+                  "pm.test('Dang nhap dung tai khoan mau', function () { pm.expect(pm.response.json().user.email).to.equal(pm.variables.get('testEmail')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02.03 - Xem ho so ca nhan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Ho so dung tai khoan dang nhap', function () { pm.expect(String(pm.response.json().id)).to.equal(pm.variables.get('testUserId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "02.04 - Cap nhat ten, so dien thoai, dia chi",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Luu dung thong tin moi', function () { pm.expect(pm.response.json()).to.include({\"name\":\"Khách Đã Cập Nhật\",\"phone\":\"0912345678\",\"address\":\"25 Nguyễn Huệ, TP. Hồ Chí Minh\"}); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Đã Cập Nhật\",\n  \"phone\": \"0912345678\",\n  \"address\": \"25 Nguyễn Huệ, TP. Hồ Chí Minh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02.05 - Doc lai ho so da luu",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Thong tin duoc luu ben backend', function () { pm.expect(pm.response.json()).to.include({\"name\":\"Khách Đã Cập Nhật\",\"phone\":\"0912345678\",\"address\":\"25 Nguyễn Huệ, TP. Hồ Chí Minh\"}); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "02.06 - Tu choi so dien thoai sai",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(400);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Đã Cập Nhật\",\n  \"phone\": \"123\",\n  \"address\": \"25 Nguyễn Huệ, TP. Hồ Chí Minh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02.07 - USER khong duoc vao API ADMIN",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(403);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users"
+          },
+          "response": []
+        },
+        {
+          "name": "02.08 - Thieu CSRF khong duoc sua ho so",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(403);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('CSRF_INVALID');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Khách Đã Cập Nhật\",\n  \"phone\": \"0912345678\",\n  \"address\": \"25 Nguyễn Huệ, TP. Hồ Chí Minh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Doi mat khau va lam moi phien",
+      "item": [
+        {
+          "name": "03.01 - Mat khau hien tai sai",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(400);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('INVALID_CURRENT_PASSWORD');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Wrong-current-password\",\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03.02 - Doi mat khau thanh cong",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('oldAccessToken', pm.variables.get('userAccessToken'));",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().user;",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('AuthResponse dung cau truc va access JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('accessToken', 'expiresIn', 'user');",
+                  "  pm.expect(body.accessToken).to.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Refresh cookie HttpOnly, SameSite Strict, dung path', function () {",
+                  "  const cookie = pm.response.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; }).find(function (value) { return /^tucoffee_refresh=/.test(value); });",
+                  "  pm.expect(cookie).to.be.a('string');",
+                  "  pm.expect(cookie).to.match(/;\\s*HttpOnly(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*SameSite=Strict(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*Path=\\/api\\/v1\\/auth(?:;|$)/i);",
+                  "});",
+                  "if (pm.response.code === 200 && pm.response.json().accessToken) {",
+                  "  pm.variables.set('userAccessToken', pm.response.json().accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{testPassword}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03.03 - Token truoc doi mat khau da bi thu hoi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  ",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{oldAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "03.04 - Refresh bang cookie va cap access moi",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().user;",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('AuthResponse dung cau truc va access JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('accessToken', 'expiresIn', 'user');",
+                  "  pm.expect(body.accessToken).to.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Refresh cookie HttpOnly, SameSite Strict, dung path', function () {",
+                  "  const cookie = pm.response.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; }).find(function (value) { return /^tucoffee_refresh=/.test(value); });",
+                  "  pm.expect(cookie).to.be.a('string');",
+                  "  pm.expect(cookie).to.match(/;\\s*HttpOnly(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*SameSite=Strict(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*Path=\\/api\\/v1\\/auth(?:;|$)/i);",
+                  "});",
+                  "if (pm.response.code === 200 && pm.response.json().accessToken) {",
+                  "  pm.variables.set('userAccessToken', pm.response.json().accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03.05 - Token sau refresh xem duoc ho so",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Refresh van dung user', function () { pm.expect(String(pm.response.json().id)).to.equal(pm.variables.get('testUserId')); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "03.06 - Mat khau cu khong con dung",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{testPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - ADMIN (tu bo qua neu chua dien adminEmail va adminPassword)",
+      "item": [
+        {
+          "name": "04.01 - Dang nhap ADMIN",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().user;",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('AuthResponse dung cau truc va access JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('accessToken', 'expiresIn', 'user');",
+                  "  pm.expect(body.accessToken).to.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Refresh cookie HttpOnly, SameSite Strict, dung path', function () {",
+                  "  const cookie = pm.response.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; }).find(function (value) { return /^tucoffee_refresh=/.test(value); });",
+                  "  pm.expect(cookie).to.be.a('string');",
+                  "  pm.expect(cookie).to.match(/;\\s*HttpOnly(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*SameSite=Strict(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*Path=\\/api\\/v1\\/auth(?:;|$)/i);",
+                  "});",
+                  "if (pm.response.code === 200 && pm.response.json().accessToken) {",
+                  "  pm.variables.set('adminAccessToken', pm.response.json().accessToken);",
+                  "}",
+                  "",
+                  "pm.test('Tai khoan co quyen ADMIN', function () { pm.expect(pm.response.json().user.role).to.equal('ADMIN'); });",
+                  "if (pm.response.code !== 200 || pm.response.json().user.role !== 'ADMIN') pm.variables.set('_adminEnabled', 'false');",
+                  "else pm.variables.set('adminUserId', String(pm.response.json().user.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04.02 - Tim tai khoan mau, phan trang va loc active",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('Page<User> dung cau truc va tim thay tai khoan mau', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('items', 'page', 'size', 'totalItems', 'totalPages');",
+                  "  pm.expect(body.page).to.equal(0); pm.expect(body.size).to.equal(12);",
+                  "  pm.expect(body.totalItems).to.equal(1); pm.expect(body.totalPages).to.equal(1);",
+                  "  pm.expect(body.items).to.have.lengthOf(1);",
+                  "  pm.expect(String(body.items[0].id)).to.equal(pm.variables.get('testUserId'));",
+                  "});",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().items[0];",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users?q={{testEmail}}&active=true&page=0&size=12"
+          },
+          "response": []
+        },
+        {
+          "name": "04.03 - Tu choi phan trang sai",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(400);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users?page=-1&size=12"
+          },
+          "response": []
+        },
+        {
+          "name": "04.04 - Cam ADMIN tu khoa chinh minh",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(409);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  ",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users/{{adminUserId}}/active",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04.05 - Khoa tai khoan mau",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Chi tai khoan mau bi khoa', function () { pm.expect(String(pm.response.json().id)).to.equal(pm.variables.get('testUserId')); pm.expect(pm.response.json().active).to.equal(false); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users/{{testUserId}}/active",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04.06 - Khoa tai khoan thu hoi access USER",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  ",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "04.07 - Tai khoan bi khoa khong dang nhap duoc",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('INVALID_CREDENTIALS');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04.08 - Loc tai khoan da khoa",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Ket qua loc chua tai khoan mau da khoa', function () {",
+                  "  const body = pm.response.json(); pm.expect(body.totalItems).to.equal(1);",
+                  "  pm.expect(body.items).to.have.lengthOf(1);",
+                  "  pm.expect(String(body.items[0].id)).to.equal(pm.variables.get('testUserId'));",
+                  "  pm.expect(body.items[0].active).to.equal(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users?q={{testEmail}}&active=false&page=0&size=12"
+          },
+          "response": []
+        },
+        {
+          "name": "04.09 - Mo khoa tai khoan mau",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json();",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Tai khoan mau hoat dong tro lai', function () { pm.expect(String(pm.response.json().id)).to.equal(pm.variables.get('testUserId')); pm.expect(pm.response.json().active).to.equal(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/users/{{testUserId}}/active",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04.10 - Dang xuat phien ADMIN vua tao",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('_adminEnabled') !== 'true') { pm.execution.skipRequest(); } else {",
+                  "",
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Dang nhap mat khau moi va dang xuat",
+      "item": [
+        {
+          "name": "05.01 - Dang nhap bang mat khau moi",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('Content-Type JSON', function () { pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/json(?:\\s*;|$)/i); });",
+                  "pm.test('UserResponse dung cau truc, khong lo mat khau/token', function () {",
+                  "  const user = pm.response.json().user;",
+                  "  pm.expect(user).to.have.all.keys('id', 'name', 'email', 'phone', 'address', 'role', 'active');",
+                  "  pm.expect(user.id).to.be.a('number');",
+                  "  pm.expect(user.name).to.be.a('string');",
+                  "  pm.expect(user.email).to.be.a('string');",
+                  "  pm.expect(user.role).to.be.oneOf(['USER', 'ADMIN']);",
+                  "  pm.expect(user.active).to.be.a('boolean');",
+                  "});",
+                  "pm.test('AuthResponse dung cau truc va access JWT', function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.have.all.keys('accessToken', 'expiresIn', 'user');",
+                  "  pm.expect(body.accessToken).to.match(/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/);",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.above(0);",
+                  "});",
+                  "pm.test('Refresh cookie HttpOnly, SameSite Strict, dung path', function () {",
+                  "  const cookie = pm.response.headers.all().filter(function (h) { return h.key.toLowerCase() === 'set-cookie'; })",
+                  "    .map(function (h) { return h.value; }).find(function (value) { return /^tucoffee_refresh=/.test(value); });",
+                  "  pm.expect(cookie).to.be.a('string');",
+                  "  pm.expect(cookie).to.match(/;\\s*HttpOnly(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*SameSite=Strict(?:;|$)/i);",
+                  "  pm.expect(cookie).to.match(/;\\s*Path=\\/api\\/v1\\/auth(?:;|$)/i);",
+                  "});",
+                  "if (pm.response.code === 200 && pm.response.json().accessToken) {",
+                  "  pm.variables.set('userAccessToken', pm.response.json().accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Turnstile-Token",
+                "value": "{{turnstileToken}}",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"password\": \"{{newPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05.02 - Dang xuat USER",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });",
+                  "pm.test('Logout khong tra body', function () { pm.expect(pm.response.text()).to.equal(''); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05.03 - Token da dang xuat khong xem duoc ho so",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  ",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userAccessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/users/me"
+          },
+          "response": []
+        },
+        {
+          "name": "05.04 - Refresh sau logout bi tu choi",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', function () { pm.response.to.have.status(401); });",
+                  "pm.test('Loi tra application/problem+json va status dung', function () {",
+                  "  pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json(?:\\s*;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.equal(401);",
+                  "  pm.expect(body).to.include.keys('type', 'title', 'status', 'detail', 'instance');",
+                  "  pm.expect(body).not.to.have.property('trace');",
+                  "  pm.expect(body).not.to.have.property('stackTrace');",
+                  "  pm.expect(body.code).to.equal('NO_REFRESH_TOKEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05.05 - Dang xuat lan nua van an toan",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.replaceIn('{{baseUrl}}/api/v1/auth/csrf'),",
+                  "  method: 'GET',",
+                  "  header: { Accept: 'application/json' }",
+                  "}, function (error, response) {",
+                  "  pm.test('Lay CSRF truoc thao tac ghi', function () {",
+                  "    pm.expect(error).to.equal(null);",
+                  "    pm.expect(response.code).to.equal(200);",
+                  "    pm.expect(response.json().token).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  if (error || !response || response.code !== 200) {",
+                  "    pm.execution.skipRequest();",
+                  "    return;",
+                  "  }",
+                  "  const token = response.json();",
+                  "  pm.request.headers.upsert({ key: token.headerName, value: token.token });",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

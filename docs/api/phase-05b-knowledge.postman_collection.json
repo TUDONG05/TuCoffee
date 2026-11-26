@@ -1,0 +1,171 @@
+{
+  "info": {
+    "name": "TuCoffee — Quản lý tài liệu tri thức",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Dùng JWT ADMIN và cookie CSRF từ cùng phiên đăng nhập. Chọn tệp thử nghiệm được phép công khai. Cập nhật documentVersion từ request xem chi tiết trước mỗi thao tác ghi."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "documentId",
+      "value": "1"
+    },
+    {
+      "key": "documentVersion",
+      "value": "0"
+    },
+    {
+      "key": "versionId",
+      "value": "1"
+    },
+    {
+      "key": "enabled",
+      "value": "true"
+    }
+  ],
+  "item": [
+    {
+      "name": "Danh sách",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents?page=0&size=20"
+      }
+    },
+    {
+      "name": "Tải tài liệu",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents"
+      }
+    },
+    {
+      "name": "Chi tiết",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}"
+      }
+    },
+    {
+      "name": "Thay phiên bản",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}/versions?version={{documentVersion}}"
+      }
+    },
+    {
+      "name": "Lập chỉ mục lại",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}/reindex?version={{documentVersion}}"
+      }
+    },
+    {
+      "name": "Thử lại",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}/versions/{{versionId}}/retry?version={{documentVersion}}"
+      }
+    },
+    {
+      "name": "Bật hoặc tắt",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"enabled\": {{enabled}},\n  \"version\": {{documentVersion}}\n}"
+        },
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}/enabled"
+      }
+    },
+    {
+      "name": "Xóa mềm",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-XSRF-TOKEN",
+            "value": "{{csrfToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/admin/knowledge/documents/{{documentId}}?version={{documentVersion}}"
+      }
+    }
+  ]
+}
