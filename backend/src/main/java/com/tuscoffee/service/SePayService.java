@@ -43,12 +43,11 @@ public class SePayService {
                 req.id(), req.gateway(), req.transferAmount(), req.content());
 
         String configuredApiKey = paymentSettings.sepay().apiKey();
-        if (configuredApiKey != null && !configuredApiKey.isBlank()) {
-            String expectedHeader = "Apikey " + configuredApiKey.trim();
-            if (authHeader == null || (!authHeader.trim().equals(expectedHeader) && !authHeader.trim().equals(configuredApiKey.trim()))) {
-                log.warn("SePay webhook unauthorized: received '{}', expected '{}'", authHeader, expectedHeader);
-                return new SePayWebhookResponse(false, "Invalid SePay API key");
-            }
+        String apiKey = configuredApiKey == null ? "" : configuredApiKey.trim();
+        if (apiKey.isEmpty() || authHeader == null
+                || (!authHeader.trim().equals("Apikey " + apiKey) && !authHeader.trim().equals(apiKey))) {
+            log.warn("SePay webhook authentication failed");
+            return new SePayWebhookResponse(false, "Invalid SePay API key");
         }
 
         if (req.transferType() != null && !"in".equalsIgnoreCase(req.transferType())) {
@@ -62,7 +61,9 @@ public class SePayService {
             return new SePayWebhookResponse(false, "No order code found in transaction content");
         }
 
-        Order order = orderRepo.findByPublicCode(orderCode).orElse(null);
+        Order order = orderRepo.findByPublicCode(orderCode)
+                .flatMap(match -> orderRepo.findByIdForUpdate(match.getId()))
+                .orElse(null);
         if (order == null) {
             log.warn("SePay webhook order not found: {}", orderCode);
             return new SePayWebhookResponse(false, "Order not found: " + orderCode);
@@ -72,6 +73,10 @@ public class SePayService {
         if (payment == null) {
             log.warn("SePay webhook payment record not found for order: {}", orderCode);
             return new SePayWebhookResponse(false, "Payment record not found for order: " + orderCode);
+        }
+
+        if (!"QR_TRANSFER".equals(payment.getMethod())) {
+            return new SePayWebhookResponse(false, "Order does not use bank transfer");
         }
 
         if ("PAID".equals(payment.getStatus())) {
