@@ -234,4 +234,9 @@ Bật `RAG_CHAT_ENABLED=true` trong `.env`, cấu hình model trả lời qua `R
 
 ## Thiết kế database toàn dự án
 
-Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập dữ liệu mẫu cho thực đơn mặc định tắt và chỉ chạy khi được bật trong profile `local`.
+Xem [ERD, từ điển dữ liệu và quy tắc migration](docs/database-design.md). Trình nhập thực đơn mặc định tắt và hỗ trợ profile `local` hoặc `catalog-import`. Với Docker Compose, chạy import một lần mà không bật HTTP trong tiến trình import:
+
+```bash
+docker compose -p tucoffee build api
+docker compose -p tucoffee run --rm --no-deps api --spring.profiles.active=catalog-import --spring.main.web-application-type=none --catalog.seed.enabled=true
+```
